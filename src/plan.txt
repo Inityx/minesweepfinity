@@ -1,0 +1,15 @@
+hashmap<u64,usize> holding pointers to board chunks
+u64 is concat of i32 x-coord, i32 y-coord 
+chunk is static array (16x16)
+
+chunk information:
+	mines (binary)
+	clicked (binary)
+	neighboring mines (0-9)
+
+mines and clicked can each get an array of u16
+
+0000 0000 = 0
+0000 1001 = 9
+u64 = u16*4, 0-9 is 4 bits
+one u64 can store neighbor information for a 16-length row
