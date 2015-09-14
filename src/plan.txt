@@ -13,3 +13,11 @@ mines and clicked can each get an array of u16
 0000 1001 = 9
 u64 = u16*4, 0-9 is 4 bits
 one u64 can store neighbor information for a 16-length row
+
+
+chunks adjacent to active chunk must be generated and filled with mines before
+neighbors can be calulated for active chunk. Allocate and mine-ify adjacent
+chunks on click.
+
+chunks turn green when all mines have been marked and all non-mines have been
+clicked.
