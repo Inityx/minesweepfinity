@@ -1,6 +1,9 @@
+//extern crate ncurses;
+//use ncurses::*;
+
 mod msgame;
 
 fn main() {
-    println!("Hello, world!");
+    let w = msgame::World::new();
 }
 

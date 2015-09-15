@@ -1,9 +1,10 @@
 #![allow(dead_code)]
 extern crate rand;
+
 use std::collections::HashMap;
 
-const MIN_M: u8 = 16;
-const MAX_M: u8 = 64;
+const MMIN: u8 = 16;
+const MMAX: u8 = 64;
 
 pub struct World {
 	allocated: u64,
@@ -20,17 +21,20 @@ impl World {
 		}
 	}
 	
-	fn chunk_create(&mut self, x: i32, y: i32) {
-		// TODO: add current chunk, surrounding chunks if not exist
-		//		 calculate neighbors for current chunk
-		//		 increment size
+	pub fn chunk_create(&mut self, x: i32, y: i32) {
+		for i in -1..2 {
+			for j in -1..2 { 
+				if !self.board.contains_key(&(x+i, y+j)) {
+					self.board.insert((x+i,y+j), Chunk::new());
+					self.allocated += 1;
+				}
+			}
+		}
+		self.calc_neighbors(x, y);
+		self.activated += 1;
 	}
 	
-	fn chunk_add(&mut self, x: i32, y: i32) {
-		self.board.insert((x,y), Chunk::new());
-	}
-
-	fn calc_neighbors(&mut self) {}
+	fn calc_neighbors(&mut self, x: i32, y: i32) {}
 }
 
 enum ChunkStat {
@@ -55,7 +59,7 @@ impl Chunk {
 			nhb: [0;16],
 		};
 
-		for _ in 1..(rand::random::<u8>()%(MAX_M-MIN_M)+MIN_M) {
+		for _ in 1..(rand::random::<u8>()%(MMAX - MMIN) + MMIN+ 1) {
 			// duplicate entries are not of consequence.
 			c.enmine(rand::random::<u8>()%16, rand::random::<u8>()%16);
 		}
@@ -64,20 +68,16 @@ impl Chunk {
 	}
 	
 	fn enmine(&mut self, row: u8, col: u8) {
-		if (row < 15) & (col < 15) {
-			self.mines[row as usize] = self.mines[row as usize] | (1u16 << (15-col));
-		}
+		if row<15 && col<15 { self.mines[row as usize] |= 1u16<<(15-col); }
 	}
 	
 	pub fn click (&mut self, row: u8, col: u8) {
-		if (row < 15) & (col < 15) {
-			self.vis[row as usize] = self.vis[row as usize] | (1u16 << (15-col));
-		}
+		if row<15 && col<15 {   self.vis[row as usize] |= 1u16<<(15-col); }
 	}
 
 	pub fn is_clicked (&self, row: u8, col: u8) -> bool {
-		if (row < 15) & (col < 15) {
-			(self.vis[row as usize] & (1u16 << (15-col))) == (1u16 << (15-col))
+		if row<15 && col<15 {
+			self.vis[row as usize] & 1u16<<(15-col) == 1u16<<(15-col)
 		}
 		else { false }
 	}
