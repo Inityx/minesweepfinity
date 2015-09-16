@@ -21,7 +21,7 @@ impl World {
 		}
 	}
 	
-	pub fn chunk_create(&mut self, x: i32, y: i32) {
+	pub fn touch(&mut self, x: i32, y: i32) {
 		for i in -1..2 {
 			for j in -1..2 { 
 				if !self.board.contains_key(&(x+i, y+j)) {
@@ -41,10 +41,13 @@ impl World {
 #[test]
 fn test_chunk_cascade() {
 	let mut w = World::new();
-	w.chunk_create(0,0);
-	w.chunk_create(0,2);
-	assert_eq!(w.allocated, 15);
-	assert_eq!(w.activated, 2);
+	w.touch(0,0);
+	w.touch(0,2);
+	w.touch(1,3);
+	w.touch(2,1);
+	w.touch(1,1);
+	assert_eq!(w.allocated, 25);
+	assert_eq!(w.activated, 5);
 }
 
 
