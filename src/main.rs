@@ -4,6 +4,7 @@
 mod msgame;
 
 fn main() {
-    let w = msgame::World::new();
+	let mut w = msgame::World::new();
+	w.chunk_create(0,0);
 }
 

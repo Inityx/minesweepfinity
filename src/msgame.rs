@@ -33,9 +33,20 @@ impl World {
 		self.calc_neighbors(x, y);
 		self.activated += 1;
 	}
-	
+
+	#[allow(unused_variables)]
 	fn calc_neighbors(&mut self, x: i32, y: i32) {}
 }
+
+#[test]
+fn test_chunk_cascade() {
+	let mut w = World::new();
+	w.chunk_create(0,0);
+	w.chunk_create(0,2);
+	assert_eq!(w.allocated, 15);
+	assert_eq!(w.activated, 2);
+}
+
 
 enum ChunkStat {
 	Mined,
@@ -43,7 +54,7 @@ enum ChunkStat {
 	Won,
 }
 
-pub struct Chunk {
+struct Chunk {
 	stat: ChunkStat, // status
 	mines: [u16;16], // mines
 	vis: [u16;16], // visibility
@@ -51,7 +62,7 @@ pub struct Chunk {
 }
 
 impl Chunk {
-	pub fn new() -> Chunk {
+	fn new() -> Chunk {
 		let mut c = Chunk {
 			stat: ChunkStat::Mined,
 			mines: [0;16],
@@ -71,11 +82,11 @@ impl Chunk {
 		if row<15 && col<15 { self.mines[row as usize] |= 1u16<<(15-col); }
 	}
 	
-	pub fn click (&mut self, row: u8, col: u8) {
+	fn click (&mut self, row: u8, col: u8) {
 		if row<15 && col<15 {   self.vis[row as usize] |= 1u16<<(15-col); }
 	}
 
-	pub fn is_clicked (&self, row: u8, col: u8) -> bool {
+	fn is_clicked (&self, row: u8, col: u8) -> bool {
 		if row<15 && col<15 {
 			self.vis[row as usize] & 1u16<<(15-col) == 1u16<<(15-col)
 		}
