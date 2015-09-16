@@ -4,3 +4,4 @@ version = "0.1.0"
 authors = ["Inityx <CTGBandy@gmail.com>"]
 [dependencies]
 rand = "0.3"
+ncurses = "5.73.0"
