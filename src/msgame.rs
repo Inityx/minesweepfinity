@@ -24,14 +24,12 @@ impl World {
 	}
 	
 	pub fn touch(&mut self, row: i32, col: i32) {
-		for i in -1..2 {
-			for j in -1..2 { 
-				if !self.board.contains_key(&(row+i, col+j)) {
-					self.board.insert((row+i,col+j), Chunk::new());
-					self.allocated += 1;
-				}
+		for i in -1..2 { for j in -1..2 { 
+			if !self.board.contains_key(&(row+i, col+j)) {
+				self.board.insert((row+i,col+j), Chunk::new());
+				self.allocated += 1;
 			}
-		}
+		} }
 		self.calc_neighbors(row, col);
 		self.activated += 1;
 	}
