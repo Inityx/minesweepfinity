@@ -21,21 +21,21 @@ impl World {
 		}
 	}
 	
-	pub fn touch(&mut self, x: i32, y: i32) {
+	pub fn touch(&mut self, row: i32, col: i32) {
 		for i in -1..2 {
 			for j in -1..2 { 
-				if !self.board.contains_key(&(x+i, y+j)) {
-					self.board.insert((x+i,y+j), Chunk::new());
+				if !self.board.contains_key(&(row+i, col+j)) {
+					self.board.insert((row+i,col+j), Chunk::new());
 					self.allocated += 1;
 				}
 			}
 		}
-		self.calc_neighbors(x, y);
+		self.calc_neighbors(row, col);
 		self.activated += 1;
 	}
 
 	#[allow(unused_variables)]
-	fn calc_neighbors(&mut self, x: i32, y: i32) {}
+	fn calc_neighbors(&mut self, row: i32, col: i32) {}
 }
 
 #[test]

@@ -9,11 +9,12 @@ fn main() {
 	let mut w = msgame::World::new();
 	w.touch(0,0);
 
-	initscr();
+	initscr();	// create ncurses screen
+	cbreak();	// enforce terminal cbreak mode
 	printw("Hello, world");
 	refresh();
 	getch();
 
-	endwin();
+	endwin(); // terminate ncurses screen
 }
 
