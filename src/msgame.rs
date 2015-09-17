@@ -43,19 +43,18 @@ impl World {
 		let mut v: Vec<SquareView> = Vec::new();
 		let c: &Chunk = self.board.get(&(row, col)).unwrap();
 		
-		for i in 0..16 {
-			for j in 0..16 {
-				v.push(
-					if c.is_clicked(i,j) {
-						SquareView::Clicked(c.get_nhb(i,j))
-					} else {
-						SquareView::Unclicked {
-							mine: show_mines && c.is_mine(i,j),
-							flag: c.is_flag(i,j),
-						}
-					});
-			}
-		}
+		for i in 0..16 { for j in 0..16 {
+			v.push(
+				if c.is_clicked(i,j) {
+					SquareView::Clicked(c.get_nhb(i,j))
+				} else {
+					SquareView::Unclicked {
+						mine: show_mines && c.is_mine(i,j),
+						flag: c.is_flag(i,j),
+					}
+				}
+			);
+		} }
 		return (match c.status { ChunkStat::Won => true, _ => false }, v);
 	}
 }
@@ -99,12 +98,10 @@ impl Chunk {
 			flags: [0;16],
 			nhb: [0;16],
 		};
-
 		for _ in 1..(rand::random::<u8>()%(MMAX - MMIN) + MMIN+ 1) {
 			// duplicate entries are not of consequence.
 			c.enmine(rand::random::<u8>()%16, rand::random::<u8>()%16);
 		}
-		
 		return c;
 	}
 	
