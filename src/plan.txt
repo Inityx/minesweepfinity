@@ -19,5 +19,14 @@ chunks adjacent to active chunk must be generated and filled with mines before
 neighbors can be calulated for active chunk. Allocate and mine-ify adjacent
 chunks on click.
 
-chunks turn green when all mines have been marked and all non-mines have been
-clicked.
+chunks turn green and show mines when all mines have been marked and all non-mines have been clicked.
+
+number colors:
+	1: blue
+	2: green
+	3: red
+	4: dark blue
+	5: dark red
+	6: teal
+	7: purple
+	8: black
