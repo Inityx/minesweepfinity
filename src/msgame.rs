@@ -14,6 +14,7 @@ pub struct World {
 }
 
 impl World {
+	// Constructor
 	pub fn new() -> World {
 		World {
 			lose: false,
@@ -84,17 +85,18 @@ struct Chunk {
 	mines: [u16;16],    // mines
 	vis: [u16;16],      // visibility
 	flags: [u16;16],    // flags
-	neighbors: [u64;16],// neighbors
+	nhb: [u64;16],// neighbors
 }
 
 impl Chunk {
+	// Constructor
 	fn new() -> Chunk {
 		let mut c = Chunk {
 			status: ChunkStat::Mined,
 			mines: [0;16],
 			vis: [0;16],
 			flags: [0;16],
-			neighbors: [0;16],
+			nhb: [0;16],
 		};
 		for _ in 1..(rand::random::<u8>()%(MMAX - MMIN) + MMIN+ 1) {
 			// duplicate entries are not of consequence.
@@ -103,6 +105,7 @@ impl Chunk {
 		return c;
 	}
 	
+	// Setters
 	fn enmine(&mut self, row: u8, col: u8) {
 		self.mines[row as usize] |= 1u16<<(15-col);
 	}
@@ -116,9 +119,10 @@ impl Chunk {
 	}
 
 	fn set_neighbors(&mut self, row: u8, col: u8, n: u8) {
-		self.neighbors[row as usize] = (self.neighbors[row as usize] & !(15u64<<((15-col)*4))) | (n as u64) << ((15-col)*4);
+		self.nhb[row as usize] = (self.nhb[row as usize] & !(15u64<<((15-col)*4))) | (n as u64) << ((15-col)*4);
 	}
 	
+	// Getters
 	fn is_mine (&self, row: u8, col: u8) -> bool {
 		self.mines[row as usize] & 1u16<<(15-col) == 1u16<<(15-col)
 	}
@@ -132,9 +136,18 @@ impl Chunk {
 	}
 
 	fn get_neighbors(&self, row: u8, col: u8) -> u8 {
-		((self.neighbors[row as usize] & 15u64<<((15-col)*4))>>((15-col)*4)) as u8
+		((self.nhb[row as usize] & 15u64<<((15-col)*4))>>((15-col)*4)) as u8
 	}
 }
 
 #[test]
-fn test_neighbors_accessors() {}
+fn test_neighbors_accessors() {
+	let mut c = Chunk::new();
+
+	c.set_neighbors(0,15,10);
+	c.set_neighbors(0,14,5);
+
+	assert_eq!(format!("{:b}", c.nhb[0]), "1011010");
+	assert_eq!(c.get_neighbors(0,15), 10);
+	assert_eq!(c.get_neighbors(0,14), 5);
+}
