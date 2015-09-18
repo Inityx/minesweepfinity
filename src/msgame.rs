@@ -103,35 +103,35 @@ impl Chunk {
 		return c;
 	}
 	
-	fn enmine(&mut self, row: u8, col: u8) { debug_assert!(row<15 && col<15);
+	fn enmine(&mut self, row: u8, col: u8) {
 		self.mines[row as usize] |= 1u16<<(15-col);
 	}
 	
-	fn click (&mut self, row: u8, col: u8) { debug_assert!(row<15 && col<15);
+	fn click (&mut self, row: u8, col: u8) {
 		self.vis  [row as usize] |= 1u16<<(15-col);
 	}
 
-	fn enflag (&mut self, row: u8, col: u8) { debug_assert!(row<15 && col<15);
+	fn enflag (&mut self, row: u8, col: u8) {
 		self.flags[row as usize] |= 1u16<<(15-col);
 	}
 
-	fn set_neighbors(&mut self, row: u8, col: u8, n: u8) { debug_assert!(row<15 && col<15);
+	fn set_neighbors(&mut self, row: u8, col: u8, n: u8) {
 		self.neighbors[row as usize] = (self.neighbors[row as usize] & !(15u64<<((15-col)*4))) | (n as u64) << ((15-col)*4);
 	}
 	
-	fn is_mine (&self, row: u8, col: u8) -> bool { debug_assert!(row<15 && col<15);
+	fn is_mine (&self, row: u8, col: u8) -> bool {
 		self.mines[row as usize] & 1u16<<(15-col) == 1u16<<(15-col)
 	}
 
-	fn is_clicked (&self, row: u8, col: u8) -> bool { debug_assert!(row<15 && col<15);
+	fn is_clicked (&self, row: u8, col: u8) -> bool {
 		self.vis  [row as usize] & 1u16<<(15-col) == 1u16<<(15-col)
 	}
 	
-	fn is_flag (&self, row: u8, col: u8) -> bool { debug_assert!(row<15 && col<15);
+	fn is_flag (&self, row: u8, col: u8) -> bool {
 		self.flags[row as usize] & 1u16<<(15-col) == 1u16<<(15-col)
 	}
 
-	fn get_neighbors(&self, row: u8, col: u8) -> u8 { debug_assert!(row<15 && col<15);
+	fn get_neighbors(&self, row: u8, col: u8) -> u8 {
 		((self.neighbors[row as usize] & 15u64<<((15-col)*4))>>((15-col)*4)) as u8
 	}
 }
