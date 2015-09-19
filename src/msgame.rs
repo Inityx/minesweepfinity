@@ -106,35 +106,43 @@ impl Chunk {
 	}
 	
 	// Setters
+	#[inline]
 	fn enmine(&mut self, row: u8, col: u8) {
 		self.mines[row as usize] |= 1u8<<(7-col);
 	}
 	
+	#[inline]
 	fn click (&mut self, row: u8, col: u8) {
 		self.vis  [row as usize] |= 1u8<<(7-col);
 	}
 
+	#[inline]
 	fn enflag (&mut self, row: u8, col: u8) {
 		self.flags[row as usize] |= 1u8<<(7-col);
 	}
 
+	#[inline]
 	fn set_neighbors(&mut self, row: u8, col: u8, n: u8) {
 		self.nhb[row as usize] = (self.nhb[row as usize] & !(15u32<<((7-col)*4))) | (n as u32) << ((7-col)*4);
 	}
 	
 	// Getters
+	#[inline]
 	fn is_mine (&self, row: u8, col: u8) -> bool {
 		self.mines[row as usize] & 1u8<<(7-col) == 1u8<<(7-col)
 	}
 
+	#[inline]
 	fn is_clicked (&self, row: u8, col: u8) -> bool {
 		self.vis  [row as usize] & 1u8<<(7-col) == 1u8<<(7-col)
 	}
 	
+	#[inline]
 	fn is_flag (&self, row: u8, col: u8) -> bool {
 		self.flags[row as usize] & 1u8<<(7-col) == 1u8<<(7-col)
 	}
 
+	#[inline]
 	fn get_neighbors(&self, row: u8, col: u8) -> u8 {
 		((self.nhb[row as usize] & 15u32<<((7-col)*4))>>((7-col)*4)) as u8
 	}
