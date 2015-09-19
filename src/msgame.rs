@@ -3,8 +3,8 @@ extern crate rand;
 
 use std::collections::HashMap;
 
-const MMIN: u8 = 16;
-const MMAX: u8 = 64;
+const MMIN: u8 = 8;
+const MMAX: u8 = 16;
 
 pub struct World {
 	lose: bool,
@@ -42,7 +42,7 @@ impl World {
 		let mut v: Vec<SquareView> = Vec::new();
 		let c: &Chunk = self.board.get(&(row, col)).unwrap();
 		
-		for i in 0..16 { for j in 0..16 {
+		for i in 0..8 { for j in 0..8 {
 			v.push(
 				if c.is_clicked(i,j) {
 					SquareView::Clicked(c.get_neighbors(i,j))
@@ -81,11 +81,11 @@ enum ChunkStat {
 }
 
 struct Chunk {
-	status: ChunkStat,  // status
-	mines: [u16;16],    // mines
-	vis: [u16;16],      // visibility
-	flags: [u16;16],    // flags
-	nhb: [u64;16],// neighbors
+	status: ChunkStat, // status
+	mines: [u8;8],     // mines
+	vis: [u8;8],       // visibility
+	flags: [u8;8],     // flags
+	nhb: [u32;8],      // neighbors
 }
 
 impl Chunk {
@@ -93,50 +93,50 @@ impl Chunk {
 	fn new() -> Chunk {
 		let mut c = Chunk {
 			status: ChunkStat::Mined,
-			mines: [0;16],
-			vis: [0;16],
-			flags: [0;16],
-			nhb: [0;16],
+			mines: [0;8],
+			vis: [0;8],
+			flags: [0;8],
+			nhb: [0;8],
 		};
 		for _ in 1..(rand::random::<u8>()%(MMAX - MMIN) + MMIN+ 1) {
 			// duplicate entries are not of consequence.
-			c.enmine(rand::random::<u8>()%16, rand::random::<u8>()%16);
+			c.enmine(rand::random::<u8>()%8, rand::random::<u8>()%8);
 		}
 		return c;
 	}
 	
 	// Setters
 	fn enmine(&mut self, row: u8, col: u8) {
-		self.mines[row as usize] |= 1u16<<(15-col);
+		self.mines[row as usize] |= 1u8<<(7-col);
 	}
 	
 	fn click (&mut self, row: u8, col: u8) {
-		self.vis  [row as usize] |= 1u16<<(15-col);
+		self.vis  [row as usize] |= 1u8<<(7-col);
 	}
 
 	fn enflag (&mut self, row: u8, col: u8) {
-		self.flags[row as usize] |= 1u16<<(15-col);
+		self.flags[row as usize] |= 1u8<<(7-col);
 	}
 
 	fn set_neighbors(&mut self, row: u8, col: u8, n: u8) {
-		self.nhb[row as usize] = (self.nhb[row as usize] & !(15u64<<((15-col)*4))) | (n as u64) << ((15-col)*4);
+		self.nhb[row as usize] = (self.nhb[row as usize] & !(15u32<<((7-col)*4))) | (n as u32) << ((7-col)*4);
 	}
 	
 	// Getters
 	fn is_mine (&self, row: u8, col: u8) -> bool {
-		self.mines[row as usize] & 1u16<<(15-col) == 1u16<<(15-col)
+		self.mines[row as usize] & 1u8<<(7-col) == 1u8<<(7-col)
 	}
 
 	fn is_clicked (&self, row: u8, col: u8) -> bool {
-		self.vis  [row as usize] & 1u16<<(15-col) == 1u16<<(15-col)
+		self.vis  [row as usize] & 1u8<<(7-col) == 1u8<<(7-col)
 	}
 	
 	fn is_flag (&self, row: u8, col: u8) -> bool {
-		self.flags[row as usize] & 1u16<<(15-col) == 1u16<<(15-col)
+		self.flags[row as usize] & 1u8<<(7-col) == 1u8<<(7-col)
 	}
 
 	fn get_neighbors(&self, row: u8, col: u8) -> u8 {
-		((self.nhb[row as usize] & 15u64<<((15-col)*4))>>((15-col)*4)) as u8
+		((self.nhb[row as usize] & 15u32<<((7-col)*4))>>((7-col)*4)) as u8
 	}
 }
 
@@ -144,10 +144,10 @@ impl Chunk {
 fn test_neighbors_accessors() {
 	let mut c = Chunk::new();
 
-	c.set_neighbors(0,15,10);
-	c.set_neighbors(0,14,5);
+	c.set_neighbors(0,7,10);
+	c.set_neighbors(0,6,5);
 
 	assert_eq!(format!("{:b}", c.nhb[0]), "1011010");
-	assert_eq!(c.get_neighbors(0,15), 10);
-	assert_eq!(c.get_neighbors(0,14), 5);
+	assert_eq!(c.get_neighbors(0,7), 10);
+	assert_eq!(c.get_neighbors(0,6), 5);
 }
