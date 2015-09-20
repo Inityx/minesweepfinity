@@ -6,6 +6,17 @@ use std::collections::HashMap;
 const MMIN: u8 = 8;
 const MMAX: u8 = 16;
 
+enum SquareView {
+	Unclicked { flag: bool, mine: bool},
+	Clicked(u8),
+}
+enum ChunkStat {
+	Mined,
+	Neighbored,
+	Won,
+}
+
+
 pub struct World {
 	lose: bool,
 	allocated: u64,
@@ -58,27 +69,6 @@ impl World {
 	}
 }
 
-#[test]
-fn test_chunk_cascade() {
-	let mut w = World::new();
-	w.touch(0,0);
-	w.touch(0,2);
-	w.touch(1,3);
-	w.touch(2,1);
-	w.touch(1,1);
-	assert_eq!(w.allocated, 25);
-	assert_eq!(w.activated, 5);
-}
-
-enum SquareView {
-	Unclicked { flag: bool, mine: bool},
-	Clicked(u8),
-}
-enum ChunkStat {
-	Mined,
-	Neighbored,
-	Won,
-}
 
 struct Chunk {
 	status: ChunkStat, // status
@@ -148,6 +138,7 @@ impl Chunk {
 	}
 }
 
+
 #[test]
 fn test_neighbors_accessors() {
 	let mut c = Chunk::new();
@@ -158,4 +149,16 @@ fn test_neighbors_accessors() {
 	assert_eq!(format!("{:b}", c.nhb[0]), "1011010");
 	assert_eq!(c.get_neighbors(0,7), 10);
 	assert_eq!(c.get_neighbors(0,6), 5);
+}
+
+#[test]
+fn test_chunk_cascade() {
+	let mut w = World::new();
+	w.touch(0,0);
+	w.touch(0,2);
+	w.touch(1,3);
+	w.touch(2,1);
+	w.touch(1,1);
+	assert_eq!(w.allocated, 25);
+	assert_eq!(w.activated, 5);
 }
