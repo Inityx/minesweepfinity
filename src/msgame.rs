@@ -22,7 +22,7 @@ pub struct Game {
 	world: World,
 	lose: bool,
 	chunks_won: u64,
-
+	scroll: (i32,i32),
 }
 
 impl Game {
@@ -34,13 +34,21 @@ impl Game {
 			world: World::new(),
 			lose: false,
 			chunks_won: 0,
+			scroll: (0,0),
 		}
 	}
 
-	pub fn print(&self) {
+	pub fn print(&mut self) {
+		Game::checkerboard();
 		ncurses::printw("Hello, world");
 		ncurses::refresh();
 	}
+
+	fn checkerboard() {
+		for i in 0..ncurses::LINES { for j in 0..ncurses::COLS {
+			ncurses::mvaddch(i,j,'A' as u64);
+		} }
+   	}
 }
 
 impl Drop for Game {
