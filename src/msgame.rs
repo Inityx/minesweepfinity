@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 extern crate rand;
+extern crate ncurses;
 
 use std::collections::HashMap;
 
@@ -17,8 +18,40 @@ enum ChunkStat {
 }
 
 
-pub struct World {
+pub struct Game {
+	world: World,
 	lose: bool,
+	chunks_won: u64,
+
+}
+
+impl Game {
+	pub fn new() -> Game {
+		ncurses::initscr();	// create ncurses screen
+		ncurses::cbreak();	// enforce terminal cbreak mode
+		
+		Game {
+			world: World::new(),
+			lose: false,
+			chunks_won: 0,
+		}
+	}
+
+	pub fn print(&self) {
+		ncurses::printw("Hello, world");
+		ncurses::refresh();
+	}
+}
+
+impl Drop for Game {
+	fn drop(&mut self) {
+		ncurses::endwin();	// destroy ncurses screen
+	}
+}
+
+
+
+struct World {
 	allocated: u64,
 	activated: u64,
 	board: HashMap<(i32,i32),Chunk>,
@@ -26,16 +59,16 @@ pub struct World {
 
 impl World {
 	// Constructor
-	pub fn new() -> World {
+	fn new() -> World {
 		World {
-			lose: false,
 			allocated: 0,
 			activated: 0,
 			board: HashMap::new(),
 		}
 	}
 	
-	pub fn touch(&mut self, row: i32, col: i32) {
+	// generate chunks given (row, col) click
+	fn touch(&mut self, row: i32, col: i32) {
 		for i in -1..2 { for j in -1..2 { 
 			if !self.board.contains_key(&(row+i, col+j)) {
 				self.board.insert((row+i,col+j), Chunk::new());
@@ -49,7 +82,8 @@ impl World {
 	#[allow(unused_variables)]
 	fn calc_neighbors(&mut self, row: i32, col: i32) {}
 
-	pub fn chunk_view(&self, show_mines: bool, row: i32, col: i32) -> (bool, Vec<SquareView>) {
+	// return vector of cells as viewed by player
+	fn chunk_view(&self, show_mines: bool, row: i32, col: i32) -> (bool, Vec<SquareView>) {
 		let mut v: Vec<SquareView> = Vec::new();
 		let c: &Chunk = self.board.get(&(row, col)).unwrap();
 		
