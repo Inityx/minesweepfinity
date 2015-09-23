@@ -32,20 +32,25 @@ impl Game {
 		cbreak();	// enforce terminal cbreak mode
 		start_color(); // initialize colors
 
+		// overlay colors
+		init_pair(20, COLOR_WHITE, COLOR_BLACK);
+		init_pair(21, COLOR_GREEN, COLOR_BLACK);
+
 		// checkerboard colors
-		init_pair(10, COLOR_WHITE, COLOR_GREEN);
+		init_pair(10, COLOR_WHITE, COLOR_YELLOW);
 		init_pair(11, COLOR_WHITE, COLOR_BLUE);
 		
 		// clicked colors
 		let click_back = COLOR_BLACK;
-		init_pair(1, COLOR_BLACK, click_back);
-		init_pair(2, COLOR_BLACK, click_back);
-		init_pair(3, COLOR_BLACK, click_back);
-		init_pair(4, COLOR_BLACK, click_back);
-		init_pair(5, COLOR_BLACK, click_back);
-		init_pair(6, COLOR_BLACK, click_back);
-		init_pair(7, COLOR_BLACK, click_back);
-		init_pair(8, COLOR_BLACK, click_back);
+		init_pair(0, COLOR_WHITE, click_back);
+		init_pair(1, COLOR_WHITE, click_back);
+		init_pair(2, COLOR_WHITE, click_back);
+		init_pair(3, COLOR_WHITE, click_back);
+		init_pair(4, COLOR_WHITE, click_back);
+		init_pair(5, COLOR_WHITE, click_back);
+		init_pair(6, COLOR_WHITE, click_back);
+		init_pair(7, COLOR_WHITE, click_back);
+		init_pair(8, COLOR_WHITE, click_back);
 
 		Game {
 			world: World::new(),
@@ -56,11 +61,13 @@ impl Game {
 	}
 
 	pub fn print(&mut self) {
-		Game::checkerboard();
+		self.print_checkerboard();
+		self.print_chunks();
+		self.print_overlay();
 		refresh();
 	}
-
-	fn checkerboard() {
+	
+	fn print_checkerboard(&self) {
 		let rows = LINES;
 		let cols = if COLS%2 == 0 { COLS/2 } else { COLS/2+1 };
 
@@ -72,6 +79,46 @@ impl Game {
 			attroff(COLOR_PAIR(((i+j)%2+10) as i16));
 		} }
    	}
+
+	fn print_chunks(&self) {}
+
+	fn print_overlay(&self) {
+		attron(COLOR_PAIR(20));
+		
+		// top LH corner
+		mvaddstr(0,0,"   ");
+		
+		// top edge
+		for i in 0..(if COLS%2 == 0 { COLS/2 } else { COLS/2+1 }) {
+			attron(COLOR_PAIR(21));
+			mvaddch(0,(i*2+3) as i32,(b'a'+(i/26) as u8) as u64);
+			attroff(COLOR_PAIR(21));
+			mvaddch(0,(i*2+4) as i32,(b'a'+(i%26) as u8) as u64);
+		}
+		
+		// left edge
+		// (padding done manually because it's a separate library)
+		for i in 0..LINES-2 {
+			let temp = 
+				match i {
+					0...9 => format!("  {}", i),
+					10...99 => format!(" {}", i),
+					100...999 => format!("{}", i),
+					_ => unreachable!("You must have gone to a lot of trouble to get a terminal that tall."),
+				};
+			mvaddstr(i+1,0,&temp);
+		}
+
+		// bottom bar
+		for i in 0..COLS {
+			mvaddch(LINES-1,i,' ' as u64);
+		}
+		let temp = format!("Chunks solved: {}", self.chunks_won);
+		mvaddstr(LINES-1,4,&temp);
+
+		attroff(COLOR_PAIR(20));
+		mv(0,0);
+	}
 }
 
 impl Drop for Game {
