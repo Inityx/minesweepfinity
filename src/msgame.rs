@@ -66,6 +66,7 @@ impl Game {
 
 		for i in 0..rows { for j in 0..cols {
 			attron(COLOR_PAIR(((i+j)%2+10) as i16));
+			// mvaddstr(i,j*2,"５"); // ncurses no likey :(
 			mvaddch(i,j*2,  ' ' as u64);
 			mvaddch(i,j*2+1,' ' as u64);
 			attroff(COLOR_PAIR(((i+j)%2+10) as i16));
