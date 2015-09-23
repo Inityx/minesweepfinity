@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 extern crate rand;
 extern crate ncurses;
+use ncurses::*;
 
 use std::collections::HashMap;
 
@@ -27,9 +28,25 @@ pub struct Game {
 
 impl Game {
 	pub fn new() -> Game {
-		ncurses::initscr();	// create ncurses screen
-		ncurses::cbreak();	// enforce terminal cbreak mode
+		initscr();	// create ncurses screen
+		cbreak();	// enforce terminal cbreak mode
+		start_color(); // initialize colors
+
+		// checkerboard colors
+		init_pair(10, COLOR_WHITE, COLOR_GREEN);
+		init_pair(11, COLOR_WHITE, COLOR_BLUE);
 		
+		// clicked colors
+		let click_back = COLOR_BLACK;
+		init_pair(1, COLOR_BLACK, click_back);
+		init_pair(2, COLOR_BLACK, click_back);
+		init_pair(3, COLOR_BLACK, click_back);
+		init_pair(4, COLOR_BLACK, click_back);
+		init_pair(5, COLOR_BLACK, click_back);
+		init_pair(6, COLOR_BLACK, click_back);
+		init_pair(7, COLOR_BLACK, click_back);
+		init_pair(8, COLOR_BLACK, click_back);
+
 		Game {
 			world: World::new(),
 			lose: false,
@@ -40,20 +57,25 @@ impl Game {
 
 	pub fn print(&mut self) {
 		Game::checkerboard();
-		ncurses::printw("Hello, world");
-		ncurses::refresh();
+		refresh();
 	}
 
 	fn checkerboard() {
-		for i in 0..ncurses::LINES { for j in 0..ncurses::COLS {
-			ncurses::mvaddch(i,j,'A' as u64);
+		let rows = LINES;
+		let cols = if COLS%2 == 0 { COLS/2 } else { COLS/2+1 };
+
+		for i in 0..rows { for j in 0..cols {
+			attron(COLOR_PAIR(((i+j)%2+10) as i16));
+			mvaddch(i,j*2,  ' ' as u64);
+			mvaddch(i,j*2+1,' ' as u64);
+			attroff(COLOR_PAIR(((i+j)%2+10) as i16));
 		} }
    	}
 }
 
 impl Drop for Game {
 	fn drop(&mut self) {
-		ncurses::endwin();	// destroy ncurses screen
+		endwin();	// destroy ncurses screen
 	}
 }
 
