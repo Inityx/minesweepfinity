@@ -19,15 +19,37 @@ enum ChunkStat {
 }
 
 
+
 pub struct Game {
 	world: World,
 	lose: bool,
-	chunks_won: u64,
-	scroll: (i32,i32),
+	chunks_won: u32,
+	printer: Printer,
 }
 
 impl Game {
 	pub fn new() -> Game {
+		Game {
+			world: World::new(),
+			lose: false,
+			chunks_won: 0,
+			printer: Printer::new(),
+		}
+	}
+
+	pub fn print(&self) {
+		self.printer.print(self.chunks_won);
+	}
+}
+
+
+
+struct Printer {
+	scroll: (i32,i32),
+}
+
+impl Printer {
+	fn new() -> Printer {
 		initscr();	// create ncurses screen
 		cbreak();	// enforce terminal cbreak mode
 		start_color(); // initialize colors
@@ -52,22 +74,17 @@ impl Game {
 		init_pair(7, COLOR_WHITE, click_back);
 		init_pair(8, COLOR_WHITE, click_back);
 
-		Game {
-			world: World::new(),
-			lose: false,
-			chunks_won: 0,
-			scroll: (0,0),
-		}
+		Printer { scroll: (0,0) }
 	}
 
-	pub fn print(&mut self) {
-		self.print_checkerboard();
-		self.print_chunks();
-		self.print_overlay();
+	fn print(&self, won: u32) {
+		Printer::print_checkerboard();
+		Printer::print_chunks();
+		Printer::print_overlay(won);
 		refresh();
 	}
 	
-	fn print_checkerboard(&self) {
+	fn print_checkerboard() {
 		let rows = LINES;
 		let cols = if COLS%2 == 0 { COLS/2 } else { COLS/2+1 };
 
@@ -80,9 +97,9 @@ impl Game {
 		} }
    	}
 
-	fn print_chunks(&self) {}
+	fn print_chunks() {}
 
-	fn print_overlay(&self) {
+	fn print_overlay(won: u32) {
 		attron(COLOR_PAIR(20));
 		
 		// top LH corner
@@ -101,9 +118,9 @@ impl Game {
 		for i in 0..LINES-2 {
 			let temp = 
 				match i {
-					0...9 => format!("  {}", i),
-					10...99 => format!(" {}", i),
-					100...999 => format!("{}", i),
+					0...9 =>       format!("  {}", i),
+					10...99 =>     format!(" {}", i),
+					100...999 =>   format!("{}", i),
 					_ => unreachable!("You must have gone to a lot of trouble to get a terminal that tall."),
 				};
 			mvaddstr(i+1,0,&temp);
@@ -113,7 +130,7 @@ impl Game {
 		for i in 0..COLS {
 			mvaddch(LINES-1,i,' ' as u64);
 		}
-		let temp = format!("Chunks solved: {}", self.chunks_won);
+		let temp = format!("Chunks solved: {}", won);
 		mvaddstr(LINES-1,4,&temp);
 
 		attroff(COLOR_PAIR(20));
@@ -121,7 +138,7 @@ impl Game {
 	}
 }
 
-impl Drop for Game {
+impl Drop for Printer {
 	fn drop(&mut self) {
 		endwin();	// destroy ncurses screen
 	}
@@ -180,6 +197,7 @@ impl World {
 		return (match c.status { ChunkStat::Won => true, _ => false }, v);
 	}
 }
+
 
 
 struct Chunk {
