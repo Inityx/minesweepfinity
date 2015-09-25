@@ -182,17 +182,34 @@ impl World {
 		// assert neighbors are mined
 		for i in -1..2 { for j in -1..2 { assert!(self.board.contains_key(&(row+i, col+j))); } }
 		let c: &mut Chunk = self.board.get_mut(&(row, col)).unwrap();
-		let mut temp: u8;
+		let mut temp: u8 = 0;
 
 		// interior
 		for i in 1..7 { for j in 1..7 {
-			temp = c.calc_square_neighbors(i,j);
+			// TODO calculate neighbors general case
 			c.set_neighbors(i, j, temp);
 		} }
 		
 		//edges
+		for i in 1..7 {
+			// TODO calculate left edge
+			c.set_neighbors(i,0, temp)
+		}
+		for i in 1..7 {
+			// TODO calculate right edge
+			c.set_neighbors(i,7, temp)
+		}
+		for j in 1..7 {
+			// TODO calculate top edge
+			c.set_neighbors(0,j, temp)
+		}
+		for j in 1..7 {
+			// TODO calculate bottom edge
+			c.set_neighbors(7,j, temp)
+		}
 
 		//corners
+
 	}
 
 	// return vector of cells as viewed by player
@@ -283,13 +300,6 @@ impl Chunk {
 	#[inline]
 	fn get_neighbors(&self, row: u8, col: u8) -> u8 {
 		((self.nhb[row as usize] & 15u32<<((7-col)*4))>>((7-col)*4)) as u8
-	}
-
-	// neighbor calculation per square
-	#[inline]
-	#[allow(unused_variables)]
-	fn calc_square_neighbors(&self, row: u8, col: u8) -> u8 {
-		1 // TODO
 	}
 }
 
