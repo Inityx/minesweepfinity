@@ -175,7 +175,18 @@ impl World {
 	}
 
 	#[allow(unused_variables)]
-	fn calc_neighbors(&mut self, row: i32, col: i32) {}
+	fn calc_neighbors(&mut self, row: i32, col: i32) {
+		// assert neighbors are mined
+		for i in -1..2 { for j in -1..2 { assert!(self.board.contains_key(&(row+i, col+j))); } }
+		let c: &mut Chunk = self.board.get(&(row, col)).unwrap();
+
+		// interior
+		for i in 1..7 { for j in 1..7 { c.set_neighbors(i, j, c.calc_square_neighbors(i,j)); }
+		
+		//edges
+
+		//corners
+	}
 
 	// return vector of cells as viewed by player
 	fn chunk_view(&self, show_mines: bool, row: i32, col: i32) -> (bool, Vec<SquareView>) {
@@ -265,6 +276,12 @@ impl Chunk {
 	#[inline]
 	fn get_neighbors(&self, row: u8, col: u8) -> u8 {
 		((self.nhb[row as usize] & 15u32<<((7-col)*4))>>((7-col)*4)) as u8
+	}
+
+	// neighbor calculation per square
+	#[inline]
+	fn calc_square_neighbors(&self, row: u8, col: u8) -> u8 {
+		1 // TODO
 	}
 }
 
