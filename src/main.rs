@@ -7,6 +7,7 @@ use msgame::*;
 #[allow(unused_mut)]
 fn main() {
 	let mut g = Game::new();
+	g.test_touch();
 	g.print();
 	ncurses::getch();
 }

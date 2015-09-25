@@ -37,6 +37,10 @@ impl Game {
 		}
 	}
 
+	pub fn test_touch(&mut self) {
+		self.world.touch(0,0);
+	}
+
 	pub fn print(&self) {
 		self.printer.print(self.chunks_won);
 	}
@@ -174,14 +178,17 @@ impl World {
 		self.activated += 1;
 	}
 
-	#[allow(unused_variables)]
 	fn calc_neighbors(&mut self, row: i32, col: i32) {
 		// assert neighbors are mined
 		for i in -1..2 { for j in -1..2 { assert!(self.board.contains_key(&(row+i, col+j))); } }
-		let c: &mut Chunk = self.board.get(&(row, col)).unwrap();
+		let c: &mut Chunk = self.board.get_mut(&(row, col)).unwrap();
+		let mut temp: u8;
 
 		// interior
-		for i in 1..7 { for j in 1..7 { c.set_neighbors(i, j, c.calc_square_neighbors(i,j)); }
+		for i in 1..7 { for j in 1..7 {
+			temp = c.calc_square_neighbors(i,j);
+			c.set_neighbors(i, j, temp);
+		} }
 		
 		//edges
 
@@ -280,6 +287,7 @@ impl Chunk {
 
 	// neighbor calculation per square
 	#[inline]
+	#[allow(unused_variables)]
 	fn calc_square_neighbors(&self, row: u8, col: u8) -> u8 {
 		1 // TODO
 	}
