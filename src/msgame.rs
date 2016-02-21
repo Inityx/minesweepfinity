@@ -13,6 +13,7 @@ enum SquareView {
     Clicked(u8),
 }
 enum ChunkStat {
+    Blank,
     Mined,
     Neighbored,
     Won,
@@ -179,38 +180,64 @@ impl World {
         self.activated += 1;
     }
 
+    // calculate the neighboring mine values for a chunk
     fn calc_neighbors(&mut self, row: i32, col: i32) {
-        // assert neighbors are mined
-        for i in -1..2 { for j in -1..2 { assert!(self.board.contains_key(&(row+i, col+j))); } }
-        let c: &mut Chunk = self.board.get_mut(&(row, col)).unwrap();
-        let mut temp: u8 = 0;
+        // assert center and neighbors are mined
+        for i in -1..2 {
+            for j in -1..2 {
+                assert!(self.board.contains_key(&(row+i, col+j)));
+            }
+        }
 
-        // interior
-        for i in 1..7 { for j in 1..7 {
-            // TODO calculate neighbors general case
-            c.set_neighbors(i, j, temp);
-        } }
+        let mut canvas = Chunk::blank();
         
-        //edges
-        for i in 1..7 {
-            // TODO calculate left edge
-            c.set_neighbors(i,0, temp)
-        }
-        for i in 1..7 {
-            // TODO calculate right edge
-            c.set_neighbors(i,7, temp)
-        }
-        for j in 1..7 {
-            // TODO calculate top edge
-            c.set_neighbors(0,j, temp)
-        }
-        for j in 1..7 {
-            // TODO calculate bottom edge
-            c.set_neighbors(7,j, temp)
+        {
+            // borrow center and neighbors
+            let mut surround = Vec::<&Chunk>::with_capacity(9);
+            for i in -1..2 {
+                for j in -1..2 {
+                    surround.push(self.board.get(&(i, j)).unwrap());
+                }
+            }
+            let surround = surround; // make immutable
+            let mut temp: u8 = 0;
+            
+            // interior
+            for i in 1..7 {
+                for j in 1..7 {
+                    // TODO calculate neighbors general case
+                    canvas.set_neighbors(i,j, temp)
+                }
+            }
+            
+            //edges
+            for i in 1..7 {
+                // TODO calculate left edge
+                canvas.set_neighbors(i,0, temp)
+            }
+            for i in 1..7 {
+                // TODO calculate right edge
+                canvas.set_neighbors(i,7, temp)
+            }
+            for j in 1..7 {
+                // TODO calculate top edge
+                canvas.set_neighbors(0,j, temp)
+            }
+            for j in 1..7 {
+                // TODO calculate bottom edge
+                canvas.set_neighbors(7,j, temp)
+            }
+
+            //corners
         }
 
-        //corners
-
+        // copy canvas neighbors to real chunk
+        let dest = self.board.get_mut(&(row, col)).unwrap();
+        for i in 0..8 {
+            for j in 0..8 {
+                dest.set_neighbors(i,j, canvas.get_neighbors(i,j));
+            }
+        }
     }
 
     // return vector of cells as viewed by player
@@ -245,7 +272,7 @@ struct Chunk {
 }
 
 impl Chunk {
-    // Constructor
+    // Constructors
     fn new() -> Chunk {
         let mut c = Chunk {
             status: ChunkStat::Mined,
@@ -259,6 +286,16 @@ impl Chunk {
             c.enmine(rand::random::<u8>()%8, rand::random::<u8>()%8);
         }
         return c;
+    }
+    
+    fn blank() -> Chunk {
+        Chunk {
+            status: ChunkStat::Blank,
+            mines: [0;8],
+            vis: [0;8],
+            flags: [0;8],
+            nhb: [0;8],
+        }
     }
     
     // Setters
