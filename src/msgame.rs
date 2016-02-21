@@ -82,13 +82,13 @@ impl Printer {
 	}
 
 	fn print(&self, won: u32) {
-		Printer::print_checkerboard();
-		Printer::print_chunks();
-		Printer::print_overlay(won);
+		self.print_checkerboard();
+		self.print_chunks();
+		self.print_overlay(won);
 		refresh();
 	}
 	
-	fn print_checkerboard() {
+	fn print_checkerboard(&self) {
 		let rows = LINES;
 		let cols = if COLS%2 == 0 { COLS/2 } else { COLS/2+1 };
 
@@ -101,9 +101,10 @@ impl Printer {
 		} }
    	}
 
-	fn print_chunks() {}
+	fn print_chunks(&self) {
+    }
 
-	fn print_overlay(won: u32) {
+	fn print_overlay(&self, won: u32) {
 		attron(COLOR_PAIR(20));
 		
 		// top LH corner
