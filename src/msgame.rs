@@ -4,6 +4,8 @@ extern crate ncurses;
 use ncurses::*;
 
 use std::collections::HashMap;
+use std::fmt;
+use std::string;
 
 const MMIN: u8 = 8;
 const MMAX: u8 = 16;
@@ -269,6 +271,53 @@ struct Chunk {
     vis: [u8;8],       // visibility
     flags: [u8;8],     // flags
     nhb: [u32;8],      // neighbors
+}
+
+impl fmt::Debug for Chunk {
+    fn fmt (&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut b = String::new();
+        b.push_str("\nMines:\n+----------------+\n");
+        for i in 0..8 {
+            b.push('|');
+            for j in 0..8 {
+                b.push_str(if self.is_mine(i, j) { "##" } else { "  " });
+            }
+            b.push_str("|\n");
+        }
+        b.push_str("+----------------+\n");
+        
+        b.push_str("\nClicks:\n+----------------+\n");
+        for i in 0..8 {
+            b.push('|');
+            for j in 0..8 {
+                b.push_str(if self.is_clicked(i, j) { "##" } else { "  " });
+            }
+            b.push_str("|\n");
+        }
+        b.push_str("+----------------+\n");
+        
+        b.push_str("\nFlags:\n+----------------+\n");
+        for i in 0..8 {
+            b.push('|');
+            for j in 0..8 {
+                b.push_str(if self.is_flag(i, j) { "##" } else { "  " });
+            }
+            b.push_str("|\n");
+        }
+        b.push_str("+----------------+\n");
+        
+        b.push_str("\nNeighbors:\n+----------------+\n");
+        for i in 0..8 {
+            b.push('|');
+            for j in 0..8 {
+                let x = self.get_neighbors(i,j);
+                b = format!("#{}{}", b, match x { 1 ... 9 => x.to_string(), _ => "  ".to_string(), });
+            }
+            b.push_str("|\n");
+        }
+        b.push_str("+----------------+\n");
+        write!(f, "{}", b)
+    }
 }
 
 impl Chunk {
