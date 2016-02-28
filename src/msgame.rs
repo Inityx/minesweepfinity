@@ -5,7 +5,6 @@ use ncurses::*;
 
 use std::collections::HashMap;
 use std::fmt;
-use std::string;
 
 const MMIN: u8 = 8;
 const MMAX: u8 = 16;
@@ -39,6 +38,10 @@ impl Game {
             printer: Printer::new(),
         }
     }
+    
+    pub fn init_printer(&mut self) {
+        self.printer.init();
+    }
 
     pub fn test_touch(&mut self) {
         self.world.touch(0,0);
@@ -46,6 +49,10 @@ impl Game {
 
     pub fn print(&self) {
         self.printer.print(self.chunks_won);
+    }
+
+    pub fn chunk_debug(&self) {
+        self.world.chunk_debug(0,0);
     }
 }
 
@@ -57,6 +64,10 @@ struct Printer {
 
 impl Printer {
     fn new() -> Printer {
+        Printer { scroll: (0,0) }
+    }
+    
+    fn init(&self) {
         initscr();  // create ncurses screen
         cbreak();   // enforce terminal cbreak mode
         start_color(); // initialize colors
@@ -80,8 +91,6 @@ impl Printer {
         init_pair(6, COLOR_WHITE, click_back);
         init_pair(7, COLOR_WHITE, click_back);
         init_pair(8, COLOR_WHITE, click_back);
-
-        Printer { scroll: (0,0) }
     }
 
     fn print(&self, won: u32) {
@@ -170,6 +179,10 @@ impl World {
         }
     }
     
+    fn chunk_debug(&self, row: i32, col: i32) {
+        println!("{:?}", self.board.get(&(row, col)).unwrap());
+    }
+
     // generate chunks given (row, col) click
     fn touch(&mut self, row: i32, col: i32) {
         for i in -1..2 { for j in -1..2 { 
@@ -311,12 +324,12 @@ impl fmt::Debug for Chunk {
             b.push('|');
             for j in 0..8 {
                 let x = self.get_neighbors(i,j);
-                b = format!("#{}{}", b, match x { 1 ... 9 => x.to_string(), _ => "  ".to_string(), });
+                b = format!("{} {}", b, match x { 1 ... 9 => x.to_string(), _ => " ".to_string(), });
             }
             b.push_str("|\n");
         }
-        b.push_str("+----------------+\n");
-        write!(f, "{}", b)
+        b.push_str("+----------------+");
+        fmt::Display::fmt(&b, f)
     }
 }
 
