@@ -1,11 +1,16 @@
 extern crate ncurses;
 
+use std::env;
+
 mod msgame;
 
 fn main() {
     let mut g = msgame::Game::new();
     g.test_touch();
-    g.print();
-    ncurses::getch();
+    
+    if !env::args().any(|x| x == "--noprint") {
+        g.print();
+        ncurses::getch();
+    }
 }
 
