@@ -185,6 +185,7 @@ impl World {
 
     // generate chunks given (row, col) click
     fn touch(&mut self, row: i32, col: i32) {
+        // chunk cascade
         for i in -1..2 { for j in -1..2 { 
             if !self.board.contains_key(&(row+i, col+j)) {
                 self.board.insert((row+i,col+j), Chunk::new());
@@ -215,35 +216,53 @@ impl World {
                 }
             }
             let surround = surround; // make immutable
-            let mut temp: u8 = 0;
+            let mut temp: u8;
             
             // interior
-            for i in 1..7 {
-                for j in 1..7 {
-                    // TODO calculate neighbors general case
-                    canvas.set_neighbors(i,j, temp)
+            for i in 1i8..7 {
+                for j in 1i8..7 {
+                    temp = 0;
+                    // if current cell is not a mine, change from zero
+                    if !surround[4].is_mine(i as u8, j as u8) {
+                        for k in -1i8..2 {
+                            for l in -1i8..2 {
+                                temp += surround[4].is_mine((i+k) as u8, (j+l) as u8) as u8;
+                            }
+                        }
+                    }
+                    canvas.set_neighbors(i as u8,j as u8, temp)
                 }
             }
             
             //edges
             for i in 1..7 {
+                temp = 0;
                 // TODO calculate left edge
                 canvas.set_neighbors(i,0, temp)
             }
             for i in 1..7 {
+                temp = 0;
                 // TODO calculate right edge
                 canvas.set_neighbors(i,7, temp)
             }
             for j in 1..7 {
+                temp = 0;
                 // TODO calculate top edge
                 canvas.set_neighbors(0,j, temp)
             }
             for j in 1..7 {
+                temp = 0;
                 // TODO calculate bottom edge
                 canvas.set_neighbors(7,j, temp)
             }
 
-            //corners
+            temp = 0;
+            // TODO calculate corners
+            canvas.set_neighbors(0,0, temp);
+            canvas.set_neighbors(0,7, temp);
+            canvas.set_neighbors(7,0, temp);
+            canvas.set_neighbors(7,7, temp);
+
         }
 
         // copy canvas neighbors to real chunk
@@ -293,7 +312,7 @@ impl fmt::Debug for Chunk {
         for i in 0..8 {
             b.push('|');
             for j in 0..8 {
-                b.push_str(if self.is_mine(i, j) { "##" } else { "  " });
+                b.push_str(if self.is_mine(i, j) { "[]" } else { "  " });
             }
             b.push_str("|\n");
         }
@@ -303,7 +322,7 @@ impl fmt::Debug for Chunk {
         for i in 0..8 {
             b.push('|');
             for j in 0..8 {
-                b.push_str(if self.is_clicked(i, j) { "##" } else { "  " });
+                b.push_str(if self.is_clicked(i, j) { "[]" } else { "  " });
             }
             b.push_str("|\n");
         }
@@ -313,7 +332,7 @@ impl fmt::Debug for Chunk {
         for i in 0..8 {
             b.push('|');
             for j in 0..8 {
-                b.push_str(if self.is_flag(i, j) { "##" } else { "  " });
+                b.push_str(if self.is_flag(i, j) { "[]" } else { "  " });
             }
             b.push_str("|\n");
         }
