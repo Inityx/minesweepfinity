@@ -377,6 +377,11 @@ impl Chunk {
     }
 
     #[inline]
+    fn deflag (&mut self, row: u8, col: u8) {
+        self.flags[row as usize] &= (!1u8)<<(7-col);
+    }
+
+    #[inline]
     fn set_neighbors(&mut self, row: u8, col: u8, n: u8) {
         self.nhb[row as usize] = (self.nhb[row as usize] & !(15u32<<((7-col)*4))) | (n as u32) << ((7-col)*4);
     }
