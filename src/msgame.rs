@@ -216,21 +216,21 @@ impl World {
                 }
             }
             let surround = surround; // make immutable
-            let mut temp: u8;
+            let mut temp: u32;
             
             // interior
-            for i in 1i8..7 {
-                for j in 1i8..7 {
+            for i in 1..7 {
+                for j in 1..7 {
                     temp = 0;
                     // if current cell is not a mine, change from zero
-                    if !surround[4].is_mine(i as u8, j as u8) {
-                        for k in -1i8..2 {
-                            for l in -1i8..2 {
-                                temp += surround[4].is_mine((i+k) as u8, (j+l) as u8) as u8;
+                    if !surround[4].is_mine(i as usize, j as usize) {
+                        for k in -1..2 {
+                            for l in -1..2 {
+                                temp += surround[4].is_mine((i+k) as usize, (j+l) as usize) as u32;
                             }
                         }
                     }
-                    canvas.set_neighbors(i as u8,j as u8, temp)
+                    canvas.set_neighbors(i as usize,j as usize, temp)
                 }
             }
             
@@ -282,7 +282,7 @@ impl World {
         for i in 0..8 { for j in 0..8 {
             v.push(
                 if c.is_clicked(i,j) {
-                    SquareView::Clicked(c.get_neighbors(i,j))
+                    SquareView::Clicked(c.get_neighbors(i,j) as u8)
                 } else {
                     SquareView::Unclicked {
                         mine: show_mines && c.is_mine(i,j),
@@ -364,7 +364,7 @@ impl Chunk {
         };
         for _ in 1..(rand::random::<u8>()%(MMAX - MMIN) + MMIN+ 1) {
             // duplicate entries are not of consequence.
-            c.enmine(rand::random::<u8>()%8, rand::random::<u8>()%8);
+            c.enmine(rand::random::<usize>()%8, rand::random::<usize>()%8);
         }
         return c;
     }
@@ -381,49 +381,49 @@ impl Chunk {
     
     // Setters
     #[inline]
-    fn enmine(&mut self, row: u8, col: u8) {
-        self.mines[row as usize] |= 1u8<<(7-col);
+    fn enmine(&mut self, row: usize, col: usize) {
+        self.mines[row] |= 1u8<<(7-col);
     }
     
     #[inline]
-    fn click (&mut self, row: u8, col: u8) {
-        self.vis  [row as usize] |= 1u8<<(7-col);
+    fn click (&mut self, row: usize, col: usize) {
+        self.vis  [row] |= 1u8<<(7-col);
     }
 
     #[inline]
-    fn enflag (&mut self, row: u8, col: u8) {
-        self.flags[row as usize] |= 1u8<<(7-col);
+    fn enflag (&mut self, row: usize, col: usize) {
+        self.flags[row] |= 1u8<<(7-col);
     }
 
     #[inline]
-    fn deflag (&mut self, row: u8, col: u8) {
-        self.flags[row as usize] &= (!1u8)<<(7-col);
+    fn deflag (&mut self, row: usize, col: usize) {
+        self.flags[row] &= (!1u8)<<(7-col);
     }
 
     #[inline]
-    fn set_neighbors(&mut self, row: u8, col: u8, n: u8) {
-        self.nhb[row as usize] = (self.nhb[row as usize] & !(15u32<<((7-col)*4))) | (n as u32) << ((7-col)*4);
+    fn set_neighbors(&mut self, row: usize, col: usize, n: u32) {
+        self.nhb[row] = (self.nhb[row] & !(15u32<<((7-col)*4))) | n << ((7-col)*4);
     }
     
     // Getters
     #[inline]
-    fn is_mine (&self, row: u8, col: u8) -> bool {
-        self.mines[row as usize] & 1u8<<(7-col) == 1u8<<(7-col)
+    fn is_mine (&self, row: usize, col: usize) -> bool {
+        self.mines[row] & 1u8<<(7-col) == 1u8<<(7-col)
     }
 
     #[inline]
-    fn is_clicked (&self, row: u8, col: u8) -> bool {
-        self.vis  [row as usize] & 1u8<<(7-col) == 1u8<<(7-col)
+    fn is_clicked (&self, row: usize, col: usize) -> bool {
+        self.vis  [row] & 1u8<<(7-col) == 1u8<<(7-col)
     }
     
     #[inline]
-    fn is_flag (&self, row: u8, col: u8) -> bool {
-        self.flags[row as usize] & 1u8<<(7-col) == 1u8<<(7-col)
+    fn is_flag (&self, row: usize, col: usize) -> bool {
+        self.flags[row] & 1u8<<(7-col) == 1u8<<(7-col)
     }
 
     #[inline]
-    fn get_neighbors(&self, row: u8, col: u8) -> u8 {
-        ((self.nhb[row as usize] & 15u32<<((7-col)*4))>>((7-col)*4)) as u8
+    fn get_neighbors(&self, row: usize, col: usize) -> u32 {
+        ((self.nhb[row] & 15u32<<((7-col)*4))>>((7-col)*4))
     }
 }
 
