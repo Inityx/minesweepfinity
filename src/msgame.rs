@@ -307,47 +307,35 @@ struct Chunk {
 
 impl fmt::Debug for Chunk {
     fn fmt (&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let iter = |s: &mut String, name, func: &Fn(usize, usize) -> String| {
+            s.push_str(name);
+            s.push_str(":\n+----------------+\n");
+            for i in 0..8 {
+                s.push('|');
+                for j in 0..8 {
+                    s.push_str(&(func(i, j)));
+                }
+                s.push_str("|\n");
+            }
+            s.push_str("+----------------+\n");
+        };
+        
+        let square = |x| -> String {
+            String::from(if x { "[]" } else { "  " })
+        };
+
         let mut b = String::new();
-        b.push_str("\nMines:\n+----------------+\n");
-        for i in 0..8 {
-            b.push('|');
-            for j in 0..8 {
-                b.push_str(if self.is_mine(i, j) { "[]" } else { "  " });
+        iter(&mut b, "Mines",     &|row, col| square(self.is_mine(row, col)));
+        iter(&mut b, "Clicked",   &|row, col| square(self.is_clicked(row, col)));
+        iter(&mut b, "Flagged",   &|row, col| square(self.is_flag(row, col)));
+        iter(&mut b, "Neighbors", &|row, col| {
+            let x = self.get_neighbors(row, col);
+            match x {
+                1 ... 9 => String::from(format!(" {}", x)),
+                _ => String::from("  "),
             }
-            b.push_str("|\n");
-        }
-        b.push_str("+----------------+\n");
+        });
         
-        b.push_str("\nClicks:\n+----------------+\n");
-        for i in 0..8 {
-            b.push('|');
-            for j in 0..8 {
-                b.push_str(if self.is_clicked(i, j) { "[]" } else { "  " });
-            }
-            b.push_str("|\n");
-        }
-        b.push_str("+----------------+\n");
-        
-        b.push_str("\nFlags:\n+----------------+\n");
-        for i in 0..8 {
-            b.push('|');
-            for j in 0..8 {
-                b.push_str(if self.is_flag(i, j) { "[]" } else { "  " });
-            }
-            b.push_str("|\n");
-        }
-        b.push_str("+----------------+\n");
-        
-        b.push_str("\nNeighbors:\n+----------------+\n");
-        for i in 0..8 {
-            b.push('|');
-            for j in 0..8 {
-                let x = self.get_neighbors(i,j);
-                b = format!("{} {}", b, match x { 1 ... 9 => x.to_string(), _ => " ".to_string(), });
-            }
-            b.push_str("|\n");
-        }
-        b.push_str("+----------------+");
         fmt::Display::fmt(&b, f)
     }
 }
