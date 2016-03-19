@@ -300,8 +300,12 @@ impl fmt::Debug for Chunk {
         iter(&mut b, "Clicked",   &|row, col| square(self.is_clicked(row, col)));
         iter(&mut b, "Flagged",   &|row, col| square(self.is_flag(row, col)));
         iter(&mut b, "Neighbors", &|row, col| {
-            let mut x = self.get_neighbors(row, col);
-            if self.is_mine(row, col) { x = 10; }
+            let mut x = if self.is_mine(row, col) {
+                10
+            } else {
+                self.get_neighbors(row, col)
+            };
+
             match x {
                 1 ... 9 => String::from(format!(" {}", x)),
                 10 => String::from(" ¤"),
