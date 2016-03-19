@@ -206,63 +206,35 @@ impl World {
         }
 
         let mut canvas = Chunk::blank();
-        
+
         {
             // borrow center and neighbors
             let mut surround = Vec::<&Chunk>::with_capacity(9);
             for i in -1..2 {
                 for j in -1..2 {
-                    surround.push(self.board.get(&(i, j)).unwrap());
+                    surround.push(self.board.get(&(i+row, j+col)).unwrap());
                 }
             }
             let surround = surround; // make immutable
-            let mut temp: u32;
-            
-            // interior
-            for i in 1..7 {
-                for j in 1..7 {
-                    temp = 0;
-                    // if current cell is not a mine, change from zero
-                    if !surround[4].is_mine(i as usize, j as usize) {
-                        for k in -1..2 {
-                            for l in -1..2 {
-                                temp += surround[4].is_mine((i+k) as usize, (j+l) as usize) as u32;
+                        
+            let mut temp = 0;
+            for i in 0..8 {
+                for j in 0..8 {
+                    if !surround[4].is_mine(i as usize, j as usize) { // if cell is not a mine
+                        temp = 0;
+                        for k in -1i8..2 {
+                            for l in -1i8..2 {
+                                let (r, c) = ((i+k+8)/8, (j+l+8)/8); // surround row and column
+                                temp += surround[(3*r+c) as usize].is_mine(
+                                        ((i+k+8*(2-r))%8) as usize, // adjusted local row
+                                        ((j+l+8*(2-c))%8) as usize // adjusted local col
+                                    ) as u32;
                             }
                         }
+                        canvas.set_neighbors(i as usize, j as usize, temp);
                     }
-                    canvas.set_neighbors(i as usize,j as usize, temp)
                 }
             }
-            
-            //edges
-            for i in 1..7 {
-                temp = 0;
-                // TODO calculate left edge
-                canvas.set_neighbors(i,0, temp)
-            }
-            for i in 1..7 {
-                temp = 0;
-                // TODO calculate right edge
-                canvas.set_neighbors(i,7, temp)
-            }
-            for j in 1..7 {
-                temp = 0;
-                // TODO calculate top edge
-                canvas.set_neighbors(0,j, temp)
-            }
-            for j in 1..7 {
-                temp = 0;
-                // TODO calculate bottom edge
-                canvas.set_neighbors(7,j, temp)
-            }
-
-            temp = 0;
-            // TODO calculate corners
-            canvas.set_neighbors(0,0, temp);
-            canvas.set_neighbors(0,7, temp);
-            canvas.set_neighbors(7,0, temp);
-            canvas.set_neighbors(7,7, temp);
-
         }
 
         // copy canvas neighbors to real chunk
@@ -325,13 +297,14 @@ impl fmt::Debug for Chunk {
         };
 
         let mut b = String::new();
-        iter(&mut b, "Mines",     &|row, col| square(self.is_mine(row, col)));
         iter(&mut b, "Clicked",   &|row, col| square(self.is_clicked(row, col)));
         iter(&mut b, "Flagged",   &|row, col| square(self.is_flag(row, col)));
         iter(&mut b, "Neighbors", &|row, col| {
-            let x = self.get_neighbors(row, col);
+            let mut x = self.get_neighbors(row, col);
+            if self.is_mine(row, col) { x = 10; }
             match x {
                 1 ... 9 => String::from(format!(" {}", x)),
+                10 => String::from(" ¤"),
                 _ => String::from("  "),
             }
         });
