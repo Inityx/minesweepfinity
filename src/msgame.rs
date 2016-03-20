@@ -218,7 +218,7 @@ impl World {
             let surround = surround; // make immutable
                         
             let mut temp;
-            let (r, c) = (0, 0);
+            let (mut r, mut c);
             for i in 0..8 {
                 for j in 0..8 {
                     if !surround[4].is_mine(i as usize, j as usize) { // if cell is not a mine
@@ -302,7 +302,7 @@ impl fmt::Debug for Chunk {
         iter(&mut b, "Clicked",   &|row, col| square(self.is_clicked(row, col)));
         iter(&mut b, "Flagged",   &|row, col| square(self.is_flag(row, col)));
         iter(&mut b, "Neighbors", &|row, col| {
-            let mut x = if self.is_mine(row, col) {
+            let x = if self.is_mine(row, col) {
                 10
             } else {
                 self.get_neighbors(row, col)
