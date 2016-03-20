@@ -217,14 +217,16 @@ impl World {
             }
             let surround = surround; // make immutable
                         
-            let mut temp = 0;
+            let mut temp;
+            let (r, c) = (0, 0);
             for i in 0..8 {
                 for j in 0..8 {
                     if !surround[4].is_mine(i as usize, j as usize) { // if cell is not a mine
                         temp = 0;
                         for k in -1i8..2 {
                             for l in -1i8..2 {
-                                let (r, c) = ((i+k+8)/8, (j+l+8)/8); // surround row and column
+                                r = (i+k+8)/8; // surround row
+                                c = (j+l+8)/8; // surround column
                                 temp += surround[(3*r+c) as usize].is_mine(
                                         ((i+k+8*(2-r))%8) as usize, // adjusted local row
                                         ((j+l+8*(2-c))%8) as usize // adjusted local col
