@@ -1,19 +1,22 @@
 extern crate ncurses;
+extern crate rand;
 
-use std::env;
+mod game;
+mod interface;
 
-mod msgame;
+use interface::Interface;
 
 fn main() {
-    let mut g = msgame::Game::new();
-    g.test_touch();
+    let mut game: game::Game = Default::default();
     
-    if env::args().any(|x| x == "--noprint") {
-        g.chunk_debug();
-    } else {
-        g.init_printer();
-        g.print();
-        ncurses::getch();
+    game.test_touch();
+    
+    if std::env::args().any(|arg| arg == "--noprint") {
+        game.chunk_debug();
+        return;
     }
+    
+    let mut interface = Interface::new();
+    interface.play(&mut game);
+    ncurses::getch();
 }
-
