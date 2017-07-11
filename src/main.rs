@@ -1,13 +1,16 @@
 extern crate ncurses;
 extern crate rand;
+extern crate core;
 
 mod game;
 mod interface;
+mod aux;
 
 use interface::Interface;
+use game::Game;
 
 fn main() {
-    let mut game: game::Game = Default::default();
+    let mut game: Game = Default::default();
     
     game.test_touch();
     
@@ -18,5 +21,4 @@ fn main() {
     
     let mut interface = Interface::new();
     interface.play(&mut game);
-    ncurses::getch();
 }

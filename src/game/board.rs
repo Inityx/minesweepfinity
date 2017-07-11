@@ -1,84 +1,85 @@
 use std::collections::HashMap;
 use super::chunk;
 use super::chunk::Chunk;
+use ::aux::index_iter;
+use ::aux::coord::Coord;
 
 #[derive(Default)]
 pub struct Board {
     allocated: u64,
     activated: u64,
-    chunks: HashMap<(isize, isize), Chunk>,
+    chunks: HashMap<Coord<isize>, Chunk>,
 }
 
 impl Board {
-    pub fn get_chunk(&self, row: isize, col: isize) -> Option<&Chunk> {
-        self.chunks.get(&(row, col))
+    pub fn get_chunk(&self, coord: &Coord<isize>) -> Option<&Chunk> {
+        self.chunks.get(coord)
     }
     
-    pub fn touch(&mut self, row: isize, col: isize) {
+    pub fn touch(&mut self, coord: &Coord<isize>) {
         // chunk cascade
-        for (i, j) in Chunk::iter_adjacent_indeces() {
-            if !self.chunks.contains_key(&(row+i, col+j)) {
-                self.chunks.insert((row+i,col+j), Chunk::new());
+        for offset in index_iter::adjacent() {
+            if !self.chunks.contains_key(&(coord + offset)) {
+                self.chunks.insert(coord + offset, Chunk::with_mines());
                 self.allocated += 1;
             }
         }
-        self.calc_neighbors(row, col);
+        self.calc_neighbors(coord);
         self.activated += 1;
     }
     
-    pub fn calc_neighbors(&mut self, row: isize, col: isize) {
-        for (i, j) in Chunk::iter_adjacent_indeces() {
-            assert!(self.chunks.contains_key(&(row+i, col+j)));
+    pub fn calc_neighbors(&mut self, coord: &Coord<isize>) {
+        for offset in index_iter::adjacent() {
+            assert!(self.chunks.contains_key(&(coord + offset)));
         }
 
-        let mut canvas = Chunk::blank();
+        let mut canvas: Chunk = Default::default();
 
         {
             // borrow center and neighbors
-            let center = self.chunks.get(
-                &(row, col)
-            ).unwrap();
+            let center = self.chunks.get(&coord).unwrap();
             
             let mut surround = Vec::<&Chunk>::with_capacity(9);
-            for (i, j) in Chunk::iter_adjacent_indeces() {
-                surround.push(
-                    self.chunks.get(
-                        &(row+i, col+j)
-                    ).unwrap()
-                );
-            }
+            surround.extend(
+                index_iter::adjacent()
+                    .map(|offset| {
+                        self.chunks.get(&(coord + offset)).unwrap()
+                    })
+            );
+            // for offset in index_iter::adjacent() {
+            //     surround.push(
+            //         self.chunks.get(coord + offset).unwrap()
+            //     );
+            // }
             let surround = surround; // make immutable
             
-            for (i, j) in Chunk::iter_chunk_indeces() {
-                if !center.is_mine(i, j) {
+            for square_index in Chunk::iterate_index() {
+                if !center.is_mine(square_index) {
                     let mut count = 0;
-                    let ii = i as isize;
-                    let ji = j as isize;
+                    let square_index_i: Coord<isize> = From::from(square_index);
                     
-                    for (k, l) in Chunk::iter_adjacent_indeces() {
-                        let r = (ii+k+8)/8; // surround row
-                        let c = (ji+l+8)/8; // surround column
-                        let local_row = (ii+k+8*(2-r))%8;
-                        let local_col = (ji+l+8*(2-c))%8;
+                    for offset in index_iter::adjacent() {
+                        let RENAME_ME = (square_index_i + offset + Coord(8,8))/Coord(8,8);
                         
-                        count += surround[(3*r+c) as usize].is_mine(
-                            local_row as usize,
-                            local_col as usize,
-                        ) as u32;
+                        let local_square_index = (
+                            square_index_i + offset +
+                            Coord(8isize,8)*(Coord(2isize,2)-RENAME_ME)
+                        )%Coord(8,8);
+                        
+                        let target_chunk_index = 3*RENAME_ME.0 + RENAME_ME.1;
+                        let target_chunk = surround[target_chunk_index as usize];
+                        let is_mine = target_chunk.is_mine(From::from(local_square_index));
+                        count += is_mine as u32;
                     }
                     
-                    canvas.set_neighbors(i, j, count);
+                    canvas.set_neighbors(square_index, count);
                 }
             }
         }
 
-        let dest = self.chunks.get_mut(&(row, col)).unwrap();
+        let dest = self.chunks.get_mut(coord).unwrap();
         *dest = canvas;
         dest.status = chunk::Status::Neighbored;
-    }
-    
-    pub fn chunk_view(&self, row: isize, col: isize) -> Vec<chunk::SquareView> {
-        self.chunks.get(&(row, col)).unwrap().view()
     }
 }
 
@@ -90,9 +91,15 @@ mod tests {
     #[test]
     fn chunk_cascade() {
         let mut board: Board = Default::default();
-        for &(row, col) in [(0,0), (0,2), (1,3), (2,1), (1,1)].into_iter() {
-            board.touch(row, col);
-        }
+        let touch_points = vec![
+            Coord(0,0),
+            Coord(0,2),
+            Coord(1,3),
+            Coord(2,1),
+            Coord(1,1)
+        ];
+        
+        for ref coord in touch_points { board.touch(coord); }
         
         assert_eq!(board.allocated, 25);
         assert_eq!(board.activated, 5);
