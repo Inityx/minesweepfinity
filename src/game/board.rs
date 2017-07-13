@@ -29,28 +29,23 @@ impl Board {
     }
     
     pub fn calc_neighbors(&mut self, coord: &Coord<isize>) {
-        for offset in index_iter::adjacent() {
-            assert!(self.chunks.contains_key(&(coord + offset)));
-        }
+        assert!(
+            index_iter::adjacent()
+                .map(|offset| coord + offset )
+                .all(|target| self.chunks.contains_key(&target))
+        );
 
         let mut canvas: Chunk = Default::default();
 
         {
-            // borrow center and neighbors
             let center = self.chunks.get(&coord).unwrap();
             
             let mut surround = Vec::<&Chunk>::with_capacity(9);
             surround.extend(
                 index_iter::adjacent()
-                    .map(|offset| {
-                        self.chunks.get(&(coord + offset)).unwrap()
-                    })
+                    .map(|offset| coord + offset )
+                    .map(|target| self.chunks.get(&target).unwrap())
             );
-            // for offset in index_iter::adjacent() {
-            //     surround.push(
-            //         self.chunks.get(coord + offset).unwrap()
-            //     );
-            // }
             let surround = surround; // make immutable
             
             for square_index in Chunk::iterate_index() {
@@ -78,7 +73,7 @@ impl Board {
         }
 
         let dest = self.chunks.get_mut(coord).unwrap();
-        *dest = canvas;
+        dest.neighbors = canvas.neighbors;
         dest.status = chunk::Status::Neighbored;
     }
 }

@@ -1,11 +1,15 @@
-use std::vec::Vec;
 use std::mem;
 
 use ncurses::*;
 
 use game::Game;
-use game::chunk::SquareView;
+use game::SquareView;
 use aux::coord::Coord;
+
+const KEY_UPPER_A: i32 = b'A' as i32;
+const KEY_LOWER_Z: i32 = b'z' as i32;
+const KEY_ZERO:    i32 = b'0' as i32;
+const KEY_NINE:    i32 = b'9' as i32;
 
 pub struct Interface {
     window: WINDOW,
@@ -30,8 +34,8 @@ impl Interface {
         init_pair(21, COLOR_GREEN, COLOR_BLACK);
 
         // checkerboard colors
-        init_pair(10, COLOR_WHITE, COLOR_YELLOW);
-        init_pair(11, COLOR_WHITE, COLOR_BLUE);
+        init_pair(10, COLOR_BLACK, COLOR_WHITE);
+        init_pair(11, COLOR_WHITE, COLOR_GREEN);
         
         // clicked colors
         for i in 0..9 { init_pair(i, COLOR_WHITE, COLOR_BLACK); }
@@ -50,12 +54,15 @@ impl Interface {
     pub fn play(&mut self, game: &mut Game) {
         self.render(&game);
         loop {
-            match getch() {
-                KEY_RESIZE => { self.resize(); self.render(&game); },
+            let character = getch();
+            match character {
+                KEY_RESIZE => self.resize(),
                 KEY_MOUSE => self.mouse_click_event(),
-                KEY_CODE_YES => self.alpha_key_event(),
-                _ => (),
+                KEY_UPPER_A...KEY_LOWER_Z | KEY_ZERO...KEY_NINE => self.alpha_key_event(character),
+                KEY_DOWN...KEY_RIGHT => self.arrow_key_event(character),
+                _ => ()
             }
+            self.render(&game);
         }
     }
     
@@ -80,8 +87,8 @@ impl Interface {
     pub fn print_checkerboard(&self) { // TODO debug extra printing
         for i in 1..self.size.0 {
             for j in 0..self.checker_cols {
-                let row = i as isize + self.scroll.0;
-                let col = j as isize + self.scroll.1;
+                let row = i as isize + self.scroll.0%2;
+                let col = j as isize + self.scroll.1%2;
                 let color = COLOR_PAIR( ((row+col)%2+10) as i16 );
                 
                 attron(color);
@@ -98,7 +105,24 @@ impl Interface {
     
     #[allow(unused_variables)]
     pub fn print_chunks(&self, game: &Game) {
-        let n: Vec<SquareView> = game.view_chunk(&Coord(0,0));
+        attron(COLOR_PAIR(20));
+        let views = game.view_chunk(&Coord(0,0));
+
+        let mines = views.into_iter().map(|view|
+            if let SquareView::Unclicked{flag, mine} = view { mine } else { false }
+        );
+        
+        for (index, mine) in mines.enumerate() {
+            if !mine { continue; }
+            
+            let (row, col) = (index/8, index%8);
+            mvaddstr(
+                (row as isize + self.scroll.0) as i32,
+                (2*col as isize + self.scroll.1*2) as i32,
+                "##",
+            );
+        }
+        attroff(COLOR_PAIR(20));
     }
 
     pub fn print_overlay(&self, game: &Game) {
@@ -146,9 +170,9 @@ impl Interface {
         }
         
         let won_message = format!(
-            "Chunks solved: {}, Size: {:?}, Cols: {}",
+            "Chunks solved: {} | Scroll: {:?} | Cols: {}",
             game.get_chunks_won(),
-            self.size,
+            self.scroll,
             self.checker_cols,
         );
         mvaddstr(
@@ -170,8 +194,21 @@ impl Interface {
         );
     }
     
-    fn alpha_key_event(&mut self) {
-        
+    fn alpha_key_event(&mut self, character: i32) {
+        mvaddstr(
+            0, 0,
+            format!("Key event {}", character as u8 as char).as_str()
+        );
+    }
+    
+    fn arrow_key_event(&mut self, arrow: i32) {
+        self.scroll += match arrow {
+            KEY_UP    => Coord( 1,  0),
+            KEY_DOWN  => Coord(-1,  0),
+            KEY_LEFT  => Coord( 0,  1),
+            KEY_RIGHT => Coord( 0, -1),
+            _ => unreachable!(),
+        };
     }
 }
 

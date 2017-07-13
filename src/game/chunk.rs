@@ -2,6 +2,7 @@ use std::fmt;
 use rand::random;
 use ::aux::index_iter;
 use ::aux::coord::Coord;
+use super::SquareView;
 
 const MIN_MINES: u8 = 8;
 const MAX_MINES: u8 = 16;
@@ -18,21 +19,13 @@ impl Default for Status {
     fn default() -> Self { Status::Blank }
 }
 
-pub enum SquareView {
-    Unclicked {
-        flag: bool,
-        mine: bool
-    },
-    Clicked(u8),
-}
-
 #[derive(Default)]
 pub struct Chunk {
     pub status: Status,
     mines:     [u8;8],
     visible:   [u8;8],
     flags:     [u8;8],
-    neighbors: [u32;8],
+    pub neighbors: [u32;8],
 }
 
 #[allow(dead_code)]
@@ -56,7 +49,8 @@ impl Chunk {
     }
     
     pub fn view(&self) -> Vec<SquareView> {
-        let show_mines = self.status == Status::Won;
+        // let show_mines = self.status == Status::Won;
+        let show_mines = true;
         
         Self::iterate_index().map( |coord|
             if self.is_clicked(coord) {
@@ -77,26 +71,31 @@ impl Chunk {
     // Setters
     #[inline]
     pub fn enmine       (&mut self, coord: Coord<usize>) {
+        assert!(coord.0 < 8 && coord.1 < 8);
         self.mines[coord.0] |= 1u8<<(7-coord.1);
     }
     
     #[inline]
     pub fn click        (&mut self, coord: Coord<usize>) {
+        assert!(coord.0 < 8 && coord.1 < 8);
         self.visible[coord.0] |= 1u8<<(7-coord.1);
     }
 
     #[inline]
     pub fn enflag       (&mut self, coord: Coord<usize>) {
+        assert!(coord.0 < 8 && coord.1 < 8);
         self.flags[coord.0] |= 1u8<<(7-coord.1);
     }
 
     #[inline]
     pub fn deflag       (&mut self, coord: Coord<usize>) {
+        assert!(coord.0 < 8 && coord.1 < 8);
         self.flags[coord.0] &= (!1u8)<<(7-coord.1);
     }
 
     #[inline]
     pub fn set_neighbors(&mut self, coord: Coord<usize>, n: u32) {
+        assert!(coord.0 < 8 && coord.1 < 8);
         self.neighbors[coord.0] =
             (self.neighbors[coord.0] & !(15u32<<((7-coord.1)*4))) |
             n << ((7-coord.1)*4);
@@ -105,21 +104,25 @@ impl Chunk {
     // Getters
     #[inline]
     pub fn is_mine      (&self, coord: Coord<usize>) -> bool {
+        assert!(coord.0 < 8 && coord.1 < 8);
         self.mines[coord.0] & 1u8<<(7-coord.1) == 1u8<<(7-coord.1)
     }
 
     #[inline]
     pub fn is_clicked   (&self, coord: Coord<usize>) -> bool {
+        assert!(coord.0 < 8 && coord.1 < 8);
         self.visible[coord.0] & 1u8<<(7-coord.1) == 1u8<<(7-coord.1)
     }
     
     #[inline]
     pub fn is_flag      (&self, coord: Coord<usize>) -> bool {
+        assert!(coord.0 < 8 && coord.1 < 8);
         self.flags[coord.0] & 1u8<<(7-coord.1) == 1u8<<(7-coord.1)
     }
 
     #[inline]
     pub fn get_neighbors(&self, coord: Coord<usize>) -> u32 {
+        assert!(coord.0 < 8 && coord.1 < 8);
         ((self.neighbors[coord.0] & 15u32<<((7-coord.1)*4))>>((7-coord.1)*4))
     }
 }
@@ -127,8 +130,8 @@ impl Chunk {
 impl fmt::Debug for Chunk {
     fn fmt (&self, f: &mut fmt::Formatter) -> fmt::Result {
         let squareify = |x| String::from(if x {"[]"} else {"  "});
-        
         let mut buffer = String::new();
+        
         {
             let mut print_with = |name, func: &(Fn(Coord<usize>) -> String)| {
                 buffer.push_str(name);
@@ -143,19 +146,22 @@ impl fmt::Debug for Chunk {
                 buffer.push_str("+----------------+\n");
             };
             
-            print_with("Clicked",   &|coord| squareify(self.is_clicked(coord)));
-            print_with("Flagged",   &|coord| squareify(self.is_flag(coord)));
-            print_with("Neighbors", &|coord| {
-                if self.is_mine(coord) { return String::from(" ¤"); }
-                
-                let neighbors = self.get_neighbors(coord);
-                
-                if neighbors > 0 {
-                    format!(" {}", neighbors)
-                } else {
-                    String::from("  ")
+            print_with("Clicked", &|coord| squareify(self.is_clicked(coord)));
+            print_with("Flagged", &|coord| squareify(self.is_flag(coord)));
+            print_with(
+                "Neighbors",
+                &|coord| {
+                    if self.is_mine(coord) { return String::from(" ¤"); }
+                    
+                    let neighbors = self.get_neighbors(coord);
+                    
+                    if neighbors > 0 {
+                        format!(" {}", neighbors)
+                    } else {
+                        String::from("  ")
+                    }
                 }
-            });
+            );
         }
         
         fmt::Display::fmt(&buffer, f)
