@@ -31,7 +31,7 @@ pub struct Chunk {
 #[allow(dead_code)]
 impl Chunk {
     pub fn with_mines() -> Chunk {
-        let mut chunk: Chunk = Default::default();
+        let mut chunk: Chunk = Chunk::default();
         
         let num_mines = random::<u8>()%(MAX_MINES - MIN_MINES) + MIN_MINES;
         for _ in 0..num_mines {

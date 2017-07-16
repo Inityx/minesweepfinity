@@ -71,7 +71,7 @@ impl Iterator for IndexIterUnsigned {
     }
 }
 
-pub fn adjacent() -> IndexIterSigned {
+pub fn self_and_adjacent() -> IndexIterSigned {
     IndexIterSigned::new(Coord(3,3), Coord(-1,-1))
 }
 
@@ -97,7 +97,7 @@ mod tests {
     
     #[test]
     fn adjacent_index() {
-        let index_iter = super::adjacent();
+        let index_iter = super::self_and_adjacent();
         let mut full_vec = Vec::with_capacity(9);
         
         for i in -1..2 {

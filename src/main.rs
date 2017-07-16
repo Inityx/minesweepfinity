@@ -8,14 +8,15 @@ mod aux;
 
 use interface::Interface;
 use game::Game;
+use aux::coord::Coord;
 
 fn main() {
-    let mut game: Game = Default::default();
+    let mut game: Game = Game::default();
     
-    game.test_touch();
+    game.touch(Coord(0,0));
     
     if std::env::args().any(|arg| arg == "--noprint") {
-        game.chunk_debug();
+        game.chunk_debug(Coord(0,0));
         return;
     }
     
