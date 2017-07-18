@@ -6,7 +6,7 @@ use ncurses::COLOR_PAIR;
 use game::Game;
 use game::SquareView::*;
 use aux::coord::Coord;
-use std::io::{stderr,Write};
+use std::io::{Write,stderr};
 
 const KEY_UPPER_A: i32 = b'A' as i32;
 const KEY_LOWER_Z: i32 = b'z' as i32;
@@ -28,7 +28,8 @@ impl Interface {
         let window = initscr();  // create ncurses screen
         cbreak();   // enforce terminal cbreak mode
         keypad(window, true);
-        mousemask(NCURSES_BUTTON_CLICKED as mmask_t, None);
+        mousemask(ALL_MOUSE_EVENTS as mmask_t, None);
+        mouseinterval(0);
         noecho();
         curs_set(CURSOR_VISIBILITY::CURSOR_INVISIBLE);
         start_color(); // initialize colors
@@ -115,8 +116,8 @@ impl Interface {
         for (chunk_location, chunk) in visible_chunks {
             for (index, view) in chunk.view().into_iter().enumerate() {
                 
-                let real_space = chunk_location*8 + Coord::from(Coord(index/8, index%8));
-                let screen_space = self.to_screen_space(real_space);
+                let world_space = chunk_location*8 + Coord::from(Coord(index/8, index%8));
+                let screen_space = self.world_to_screen_space(world_space);
                 
                 let row = screen_space.0 as i32;
                 let col = screen_space.1 as i32;
@@ -204,12 +205,16 @@ impl Interface {
     fn mouse_click_event(&mut self, game: &mut Game) {
         use ncurses::MEVENT;
         let mut mouse_event: MEVENT = unsafe { mem::uninitialized() };
-        ncurses::getmouse(&mut mouse_event as *mut MEVENT);
-        let mouse_coord = Coord(mouse_event.y as usize, mouse_event.x as usize);
-        let real_coord = self.to_world_space(Coord::from(mouse_coord));
+        ncurses::getmouse(&mut mouse_event as *mut  MEVENT);
         
-        writeln!(stderr(),"Mouse event at {}", real_coord).unwrap();
-        game.touch(real_coord);
+        let mouse_coord = Coord(mouse_event.y as usize, mouse_event.x as usize);
+        let real_coord = self.screen_to_world_space(Coord::from(mouse_coord));
+        
+        if (mouse_event.bstate & ncurses::BUTTON1_PRESSED as ncurses::mmask_t) != 0 {
+            game.touch(real_coord);
+        } else if (mouse_event.bstate & ncurses::BUTTON3_PRESSED as ncurses::mmask_t) != 0 {
+            game.toggle_flag(real_coord);
+        }
     }
     
     fn alpha_key_event(&mut self, character: i32) {
@@ -229,11 +234,11 @@ impl Interface {
         };
     }
     
-    fn to_world_space(&self, coord: Coord<isize>) -> Coord<isize> {
+    fn screen_to_world_space(&self, coord: Coord<isize>) -> Coord<isize> {
         (coord - Coord::from(self.margin))/Coord(1,2) - self.scroll
     }
     
-    fn to_screen_space(&self, coord: Coord<isize>) -> Coord<isize> {
+    fn world_to_screen_space(&self, coord: Coord<isize>) -> Coord<isize> {
         (coord + self.scroll)*Coord(1,2) + Coord::from(self.margin)
     }
 }
