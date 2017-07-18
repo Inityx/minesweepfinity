@@ -25,7 +25,7 @@ impl Default for Status {
 pub struct Chunk {
     pub status: Status,
     mines:         [u8; DIMENSION],
-    visible:       [u8; DIMENSION],
+    clicked:       [u8; DIMENSION],
     flags:         [u8; DIMENSION],
     pub neighbors: [u32;DIMENSION],
 }
@@ -33,7 +33,7 @@ pub struct Chunk {
 #[allow(dead_code)]
 impl Chunk {
     pub fn with_mines() -> Chunk {
-        let mut chunk: Chunk = Chunk::default();
+        let mut chunk = Chunk::default();
         
         let num_mines = random::<u8>()%(MAX_MINES - MIN_MINES) + MIN_MINES;
         for _ in 0..num_mines {
@@ -67,7 +67,20 @@ impl Chunk {
     }
     
     pub fn iterate_index() -> index_iter::IndexIterUnsigned {
-        index_iter::IndexIterUnsigned::new(Coord(DIMENSION,DIMENSION), Coord(0,0))
+        index_iter::IndexIterUnsigned::new(
+            Coord(DIMENSION, DIMENSION),
+            Coord(0, 0)
+        )
+    }
+    
+    pub fn is_won(&self) -> bool {
+        // all mines are flagged
+        self.mines == self.flags &&
+        // all non-mines are clicked
+        self.mines
+            .iter()
+            .zip(self.clicked.iter())
+            .all(|(mine, clicked)| (!*mine) == *clicked )
     }
     
     // Setters
@@ -80,7 +93,7 @@ impl Chunk {
     #[inline]
     pub fn click        (&mut self, coord: Coord<usize>) {
         assert!(coord.0 < DIMENSION && coord.1 < DIMENSION);
-        self.visible[coord.0] |= 1u8<<(7-coord.1);
+        self.clicked[coord.0] |= 1u8<<(7-coord.1);
     }
 
     #[inline]
@@ -107,7 +120,7 @@ impl Chunk {
     #[inline]
     pub fn is_clicked   (&self, coord: Coord<usize>) -> bool {
         assert!(coord.0 < DIMENSION && coord.1 < DIMENSION);
-        self.visible[coord.0] & 1u8<<(7-coord.1) == 1u8<<(7-coord.1)
+        self.clicked[coord.0] & 1u8<<(7-coord.1) == 1u8<<(7-coord.1)
     }
     
     #[inline]
@@ -120,47 +133,6 @@ impl Chunk {
     pub fn get_neighbors(&self, coord: Coord<usize>) -> u32 {
         assert!(coord.0 < DIMENSION && coord.1 < DIMENSION);
         ((self.neighbors[coord.0] & 15u32<<((7-coord.1)*4))>>((7-coord.1)*4))
-    }
-}
-
-impl fmt::Debug for Chunk {
-    fn fmt (&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let squareify = |x| String::from(if x {"[]"} else {"  "});
-        let mut buffer = String::new();
-        
-        {
-            let mut print_with = |name, func: &(Fn(Coord<usize>) -> String)| {
-                buffer.push_str(name);
-                buffer.push_str(":\n+----------------+\n");
-                for i in 0..8 {
-                    buffer.push('|');
-                    for j in 0..8 {
-                        buffer.push_str(&(func(Coord(i,j))));
-                    }
-                    buffer.push_str("|\n");
-                }
-                buffer.push_str("+----------------+\n");
-            };
-            
-            print_with("Clicked", &|coord| squareify(self.is_clicked(coord)));
-            print_with("Flagged", &|coord| squareify(self.is_flag(coord)));
-            print_with(
-                "Neighbors",
-                &|coord| {
-                    if self.is_mine(coord) { return String::from(" ¤"); }
-                    
-                    let neighbors = self.get_neighbors(coord);
-                    
-                    if neighbors > 0 {
-                        format!(" {}", neighbors)
-                    } else {
-                        String::from("  ")
-                    }
-                }
-            );
-        }
-        
-        fmt::Display::fmt(&buffer, f)
     }
 }
 
