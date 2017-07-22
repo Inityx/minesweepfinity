@@ -84,29 +84,30 @@ impl Chunk {
     }
     
     // Setters
+    // TODO: Macros?
     #[inline]
     pub fn enmine       (&mut self, coord: Coord<usize>) {
         assert!(coord.0 < DIMENSION && coord.1 < DIMENSION);
-        self.mines[coord.0] |= 1u8<<(7-coord.1);
+        self.mines[coord.0] |= 0x01u8<<(7-coord.1);
     }
     
     #[inline]
     pub fn click        (&mut self, coord: Coord<usize>) {
         assert!(coord.0 < DIMENSION && coord.1 < DIMENSION);
-        self.clicked[coord.0] |= 1u8<<(7-coord.1);
+        self.clicked[coord.0] |= 0x01u8<<(7-coord.1);
     }
 
     #[inline]
     pub fn toggle_flag  (&mut self, coord: Coord<usize>) {
         assert!(coord.0 < DIMENSION && coord.1 < DIMENSION);
-        self.flags[coord.0] ^= 1u8<<(7-coord.1);
+        self.flags[coord.0] ^= 0x01u8<<(7-coord.1);
     }
 
     #[inline]
     pub fn set_neighbors(&mut self, coord: Coord<usize>, n: u32) {
         assert!(coord.0 < DIMENSION && coord.1 < DIMENSION);
         self.neighbors[coord.0] =
-            (self.neighbors[coord.0] & !(15u32<<((7-coord.1)*4))) |
+            (self.neighbors[coord.0] & !(0x0Fu32<<((7-coord.1)*4))) |
             n << ((7-coord.1)*4);
     }
     
@@ -114,25 +115,25 @@ impl Chunk {
     #[inline]
     pub fn is_mine      (&self, coord: Coord<usize>) -> bool {
         assert!(coord.0 < DIMENSION && coord.1 < DIMENSION);
-        self.mines[coord.0] & 1u8<<(7-coord.1) == 1u8<<(7-coord.1)
+        self.mines[coord.0] & 0x01u8<<(7-coord.1) == 0x01u8<<(7-coord.1)
     }
 
     #[inline]
     pub fn is_clicked   (&self, coord: Coord<usize>) -> bool {
         assert!(coord.0 < DIMENSION && coord.1 < DIMENSION);
-        self.clicked[coord.0] & 1u8<<(7-coord.1) == 1u8<<(7-coord.1)
+        self.clicked[coord.0] & 0x01u8<<(7-coord.1) == 0x01u8<<(7-coord.1)
     }
     
     #[inline]
     pub fn is_flag      (&self, coord: Coord<usize>) -> bool {
         assert!(coord.0 < DIMENSION && coord.1 < DIMENSION);
-        self.flags[coord.0] & 1u8<<(7-coord.1) == 1u8<<(7-coord.1)
+        self.flags[coord.0] & 0x01u8<<(7-coord.1) == 0x01u8<<(7-coord.1)
     }
 
     #[inline]
     pub fn get_neighbors(&self, coord: Coord<usize>) -> u32 {
         assert!(coord.0 < DIMENSION && coord.1 < DIMENSION);
-        ((self.neighbors[coord.0] & 15u32<<((7-coord.1)*4))>>((7-coord.1)*4))
+        ((self.neighbors[coord.0] & 0x0Fu32<<((7-coord.1)*4))>>((7-coord.1)*4))
     }
 }
 
