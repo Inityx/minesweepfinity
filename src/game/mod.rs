@@ -1,7 +1,6 @@
 mod chunk;
 
 use std::collections::HashMap;
-use std::io::{Write,stderr};
 
 use self::chunk::Chunk;
 use ::aux::index_iter;
@@ -62,30 +61,48 @@ impl Game {
         }
     }
     
-    pub fn touch(&mut self, world_coord: Coord<isize>) {
-        let (chunk_coord, square_coord) = Self::world_to_chunk_square(world_coord);
+    pub fn touch(&mut self, world_coords: Vec<Coord<isize>>) -> Option<Vec<Coord<isize>>> {
+        let mut to_click = Vec::new(); // Optimize: Vec::with_capacity()?
         
-        // Early return if square has already been clicked
-        if let Some(chunk) = self.chunks.get(&chunk_coord) {
-            if chunk.is_clicked(square_coord) { return; }
-        }
-        
-        self.allocate_with_surround(chunk_coord);
-        
-        if self.chunks
-            .get(&chunk_coord)
-            .unwrap()
-            .status == chunk::Status::Enmined
-        {
+        for world_coord in world_coords {
+            let (chunk_coord, square_coord) = Self::world_to_chunk_square(world_coord);
+            
+            // If chunk already allocated
+            if let Some(touched_chunk) = self.chunks.get_mut(&chunk_coord) {
+                // Skip if square has already been clicked
+                if touched_chunk.is_clicked(square_coord) { continue; }
+                
+                touched_chunk.unflag(square_coord); // TODO verify working
+                touched_chunk.click(square_coord);
+                
+                if touched_chunk.is_won() {
+                    touched_chunk.status = chunk::Status::Won;
+                    self.chunks_won += 1;
+                }
+            }
+            
+            // Allocate chunk & surround and calculate if not yet done
+            self.allocate_with_surround(chunk_coord);
             self.calc_neighbors(chunk_coord);
+            
+            // If safe, add adjacent to fringe vector
+            if self
+                .chunks
+                .get_mut(&chunk_coord)
+                .unwrap()
+                .get_neighbors(square_coord) == 0
+            {
+                //let extend_world_coords = index_iter::cardinal_adjacent()
+                //    .map(|offset| *offset + world_coord);
+                let extend_world_coords = index_iter::self_and_adjacent()
+                    .filter(|offset| *offset != Coord(0,0))
+                    .map(|offset| offset + world_coord);
+                
+                to_click.extend(extend_world_coords);
+            }
         }
         
-        let touched_chunk = self.chunks.get_mut(&chunk_coord).unwrap();
-        touched_chunk.click(square_coord);
-        if touched_chunk.is_won() {
-            touched_chunk.status = chunk::Status::Won;
-            self.chunks_won += 1;
-        }
+        if to_click.len() > 0 { Some(to_click) } else { None }
     }
     
     pub fn toggle_flag(&mut self, world_coord: Coord<isize>) {
@@ -109,6 +126,8 @@ impl Game {
 
         {
             let center = self.chunks.get(&coord).unwrap();
+            
+            if center.status == chunk::Status::Neighbored { return; }
             
             let mut surround = Vec::<&Chunk>::with_capacity(9);
             surround.extend(
@@ -166,7 +185,7 @@ mod tests {
             Coord(1,1)
         ];
         
-        for coord in touch_points { game.touch(coord); }
+        for coord in touch_points { game.touch(vec![coord]); }
         
         let active_count = game
             .chunks

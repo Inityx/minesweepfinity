@@ -1,6 +1,14 @@
+#![allow(dead_code)]
 use super::coord::Coord;
-
+use ::std::slice;
 // TODO make macro
+
+pub const CARDINAL_OFFSETS: &'static [Coord<isize>;4] = &[
+    Coord(-1, 0),
+    Coord( 1, 0),
+    Coord( 0,-1),
+    Coord( 0, 1)
+];
 
 pub struct IndexIterSigned {
     count: isize,
@@ -73,6 +81,10 @@ impl Iterator for IndexIterUnsigned {
 
 pub fn self_and_adjacent() -> IndexIterSigned {
     IndexIterSigned::new(Coord(3,3), Coord(-1,-1))
+}
+
+pub fn cardinal_adjacent() -> slice::Iter<'static, Coord<isize>> {
+    CARDINAL_OFFSETS.iter()
 }
 
 #[cfg(test)]

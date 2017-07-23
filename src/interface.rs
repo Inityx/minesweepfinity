@@ -6,7 +6,8 @@ use ncurses::COLOR_PAIR;
 use game::Game;
 use game::SquareView::*;
 use aux::coord::Coord;
-use std::io::{Write,stderr};
+
+use std::{thread, time};
 
 const KEY_UPPER_A: i32 = b'A' as i32;
 const KEY_LOWER_Z: i32 = b'z' as i32;
@@ -25,6 +26,7 @@ pub struct Interface {
     size: Coord<usize>,
     margin: Coord<usize>,
     checker_cols: usize,
+    spread_delay: time::Duration,
 }
 
 impl Interface {
@@ -51,6 +53,7 @@ impl Interface {
         for i in 0..9 { init_pair(i, COLOR_WHITE, COLOR_BLACK); }
         
         let mut ret = Interface::default();
+        ret.spread_delay = time::Duration::from_millis(30);
         Self::resize(&mut ret);
         ret
     }
@@ -85,7 +88,7 @@ impl Interface {
     
     fn render(&self, game: &Game) {
         self.print_checkerboard();
-        self.print_chunks(game);
+        self.print_chunks (game);
         self.print_overlay(game);
         
         ncurses::refresh();
@@ -226,7 +229,16 @@ impl Interface {
         let real_coord = self.screen_to_world_space(Coord::from(mouse_coord));
         
         if (mouse_event.bstate & ncurses::BUTTON1_PRESSED as ncurses::mmask_t) != 0 {
-            game.touch(real_coord);
+            // Spreading click cascade
+            let mut to_click = vec![real_coord];
+            
+            while let Some(fringe) = game.touch(to_click) {
+                self.print_chunks (game);
+                self.print_overlay(game);
+                ncurses::refresh();
+                to_click = fringe;
+                thread::sleep(self.spread_delay);
+            }
         } else if (mouse_event.bstate & ncurses::BUTTON3_PRESSED as ncurses::mmask_t) != 0 {
             game.toggle_flag(real_coord);
         }

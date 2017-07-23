@@ -1,4 +1,3 @@
-use std::fmt;
 use rand::random;
 use ::aux::index_iter;
 use ::aux::coord::Coord;
@@ -101,6 +100,12 @@ impl Chunk {
     pub fn toggle_flag  (&mut self, coord: Coord<usize>) {
         assert!(coord.0 < DIMENSION && coord.1 < DIMENSION);
         self.flags[coord.0] ^= 0x01u8<<(7-coord.1);
+    }
+    
+    #[inline]
+    pub fn unflag  (&mut self, coord: Coord<usize>) {
+        assert!(coord.0 < DIMENSION && coord.1 < DIMENSION);
+        self.flags[coord.0] &= !(0x01u8<<(7-coord.1));
     }
 
     #[inline]
