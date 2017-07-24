@@ -9,19 +9,15 @@ use aux::coord::Coord;
 
 use std::{thread, time};
 
-const KEY_UPPER_A: i32 = b'A' as i32;
-const KEY_LOWER_Z: i32 = b'z' as i32;
-const KEY_ZERO:    i32 = b'0' as i32;
-const KEY_NINE:    i32 = b'9' as i32;
-
 const CHECKER_1: i16 = 10;
 const CHECKER_2: i16 = 11;
 const OVERLAY_1: i16 = 20;
 const OVERLAY_2: i16 = 21;
+const POINTS:    i16 =  8;
+const PENALTY:   i16 =  9;
 
 #[derive(Default)]
 pub struct Interface {
-    // window: ncurses::WINDOW,
     scroll: Coord<isize>,
     size: Coord<usize>,
     margin: Coord<usize>,
@@ -32,41 +28,37 @@ pub struct Interface {
 impl Interface {
     pub fn new() -> Interface {
         use ncurses::*;
-        let window = initscr();  // create ncurses screen
-        cbreak();   // enforce terminal cbreak mode
+        
+        let window = initscr();
+        cbreak();
         keypad(window, true);
         mousemask(ALL_MOUSE_EVENTS as mmask_t, None);
         mouseinterval(0);
         noecho();
         curs_set(CURSOR_VISIBILITY::CURSOR_INVISIBLE);
-        start_color(); // initialize colors
-
-        // overlay colors
+        
+        start_color();
+        for i in 0..POINTS { init_pair(i, COLOR_WHITE, COLOR_BLACK); }
+        init_pair(POINTS,  COLOR_BLACK, COLOR_YELLOW);
+        init_pair(PENALTY, COLOR_BLUE,  COLOR_RED);
         init_pair(OVERLAY_1, COLOR_WHITE, COLOR_BLACK);
         init_pair(OVERLAY_2, COLOR_GREEN, COLOR_BLACK);
-
-        // checkerboard colors
         init_pair(CHECKER_1, COLOR_BLACK, COLOR_WHITE);
         init_pair(CHECKER_2, COLOR_BLACK, COLOR_GREEN);
         
-        // clicked colors
-        for i in 0..9 { init_pair(i, COLOR_WHITE, COLOR_BLACK); }
-        
         let mut ret = Interface::default();
-        ret.spread_delay = time::Duration::from_millis(30);
+        ret.spread_delay = time::Duration::from_millis(35);
         Self::resize(&mut ret);
-        ret
+        return ret;
     }
 
-    pub fn play(&mut self, mut game: &mut Game) {
+    pub fn play(&mut self, mut game: Game) {
         self.render(&game);
         loop {
             let character = ncurses::getch();
             match character {
                 ncurses::KEY_RESIZE => self.resize(),
                 ncurses::KEY_MOUSE => self.mouse_click_event(&mut game),
-                KEY_UPPER_A...KEY_LOWER_Z |
-                    KEY_ZERO...KEY_NINE => self.alpha_key_event(character),
                 ncurses::KEY_DOWN...ncurses::KEY_RIGHT => self.arrow_key_event(character),
                 _ => ()
             }
@@ -104,21 +96,10 @@ impl Interface {
     fn print_checkerboard(&self) { // TODO debug extra printing
         for row in self.margin.0..self.size.0 {
             for col in self.margin.1..self.size.1 {
-                let color = COLOR_PAIR(
-                    self.checker_color(
-                        row as isize,
-                        col as isize
-                    )
+                with_color(
+                    self.checker_color(row as isize, col as isize),
+                    || { ncurses::mvaddch(row as i32, col as i32, ' ' as u64); }
                 );
-                
-                ncurses::attron(color);
-                // mvaddstr(i,j*2,"５"); // ncurses no likey :(
-                ncurses::mvaddch(
-                    row as i32,
-                    col as i32,
-                    ' ' as u64,
-                );
-                ncurses::attroff(color);
             }
         }
     }
@@ -142,22 +123,25 @@ impl Interface {
                 
                 match view {
                     Clicked(neighbors) => {
-                        if neighbors == 0 {
-                            ncurses::mvaddstr(row, col, "  ");
-                        } else {
-                            ncurses::mvaddch(row, col,   ' ' as u64);
-                            ncurses::mvaddch(row, col+1, (neighbors + b'0') as u64);
-                        }
+                        ncurses::mvaddch(row, col, ' ' as u64);
+                        ncurses::mvaddch(
+                            row, col+1,
+                            if neighbors == 0 { b' ' } else { (neighbors + b'0') } as u64
+                        );
                     },
                     Unclicked {flag, mine} => {
                         if flag || mine {
-                            let color = self.checker_color(row as isize, col as isize);
-                            ncurses::attron(COLOR_PAIR(color));
-                            ncurses::mvaddch(row, col,   (if mine {'#'} else {' '}) as u64);
-                            ncurses::mvaddch(row, col+1, (if flag {'F'} else {' '}) as u64);
-                            ncurses::attroff(COLOR_PAIR(color));
+                            with_color(
+                                self.checker_color(row as isize, col as isize),
+                                || {
+                                    ncurses::mvaddch(row, col,   (if mine {'#'} else {' '}) as u64);
+                                    ncurses::mvaddch(row, col+1, (if flag {'F'} else {' '}) as u64);
+                                }
+                            );
                         }
-                    }
+                    },
+                    Penalty => with_color(PENALTY, || { ncurses::mvaddstr(row, col, "XX"); }),
+                    Points  => with_color(POINTS,  || { ncurses::mvaddstr(row, col, "%%"); }),
                 }
             }
         }
@@ -182,10 +166,10 @@ impl Interface {
         for i in 0..self.checker_cols {
             let col = (i*2+self.margin.1) as i32;
             
-            ncurses::attron(COLOR_PAIR(OVERLAY_2));
-            ncurses::mvaddch(0, col, char_from_index(i/26) as u64);
+            with_color(OVERLAY_2, || {
+                ncurses::mvaddch(0, col, char_from_index(i/26) as u64);
+            });
             
-            ncurses::attroff(COLOR_PAIR(OVERLAY_2));
             ncurses::mvaddch(0, col+1, char_from_index(i%26) as u64);
         }
         
@@ -244,13 +228,6 @@ impl Interface {
         }
     }
     
-    fn alpha_key_event(&mut self, character: i32) {
-        ncurses::mvaddstr(
-            0, 0,
-            format!("Key event {}", character as u8 as char).as_str()
-        );
-    }
-    
     fn arrow_key_event(&mut self, arrow: i32) {
         self.scroll += match arrow {
             ncurses::KEY_UP    => Coord( 1,  0),
@@ -274,4 +251,11 @@ impl Drop for Interface {
     fn drop(&mut self) {
         ncurses::endwin();
     }
+}
+
+#[inline]
+fn with_color<F>(color: i16, func: F) where F: Fn() {
+    ncurses::attron(COLOR_PAIR(color));
+    func();
+    ncurses::attroff(COLOR_PAIR(color));
 }

@@ -14,6 +14,7 @@ pub enum Status {
     Enmined,
     Neighbored,
     Won,
+    Lost,
 }
 
 impl Default for Status {
@@ -46,20 +47,29 @@ impl Chunk {
         }
         chunk.status = Status::Enmined;
         
-        chunk
+        return chunk;
     }
     
     pub fn view(&self) -> Vec<SquareView> {
-        // let show_mines = self.status == Status::Won;
         let show_mines = true;
         
         Self::iterate_index().map( |coord|
             if self.is_clicked(coord) {
-                SquareView::Clicked(self.get_neighbors(coord) as u8)
+                if self.is_mine(coord) {
+                    SquareView::Penalty
+                } else {
+                    SquareView::Clicked(self.get_neighbors(coord) as u8)
+                }
             } else {
-                SquareView::Unclicked {
-                    mine: show_mines && self.is_mine(coord),
-                    flag: self.is_flag(coord),
+                if self.status == Status::Won {
+                    SquareView::Points
+                } else if self.status == Status::Lost && self.is_mine(coord) {
+                    SquareView::Penalty
+                } else {
+                    SquareView::Unclicked {
+                        mine: show_mines && self.is_mine(coord),
+                        flag: self.is_flag(coord),
+                    }
                 }
             }
         ).collect::<Vec<SquareView>>()
@@ -75,7 +85,7 @@ impl Chunk {
     pub fn is_won(&self) -> bool {
         // all mines are flagged
         self.mines == self.flags &&
-        // all non-mines are clicked
+        // clicks are inverse of mines
         self.mines
             .iter()
             .zip(self.clicked.iter())
