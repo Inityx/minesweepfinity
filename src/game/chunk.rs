@@ -51,8 +51,6 @@ impl Chunk {
     }
     
     pub fn view(&self) -> Vec<SquareView> {
-        let show_mines = true;
-        
         Self::iterate_index().map( |coord|
             if self.is_clicked(coord) {
                 if self.is_mine(coord) {
@@ -65,11 +63,10 @@ impl Chunk {
                     SquareView::Points
                 } else if self.status == Status::Lost && self.is_mine(coord) {
                     SquareView::Penalty
+                } else if self.is_flag(coord) {
+                    SquareView::Flagged
                 } else {
-                    SquareView::Unclicked {
-                        mine: show_mines && self.is_mine(coord),
-                        flag: self.is_flag(coord),
-                    }
+                    SquareView::Unclicked
                 }
             }
         ).collect::<Vec<SquareView>>()

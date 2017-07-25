@@ -11,11 +11,9 @@ type Board = HashMap<Coord<isize>, Chunk>;
 
 #[derive(Debug)]
 pub enum SquareView {
-    Unclicked {
-        flag: bool,
-        mine: bool
-    },
     Clicked(u8),
+    Unclicked,
+    Flagged,
     Penalty,
     Points,
 }
@@ -29,8 +27,7 @@ pub struct Game {
 
 impl Game {
     pub fn get_chunks_won(&self) -> u64 { self.chunks_won }
-    
-    pub fn get_allocations(&self) -> usize { self.chunks.len() }
+    pub fn get_chunks_lost(&self) -> u64 { self.chunks_lost }
     
     pub fn get_chunk(&self, coord: Coord<isize>) -> Option<&Chunk> { self.chunks.get(&coord) }
     
@@ -206,11 +203,11 @@ mod tests {
     fn chunk_cascade() {
         let mut game: Game = Game::default();
         let touch_points = vec![
-            Coord(0,0),
-            Coord(0,2),
-            Coord(1,3),
-            Coord(2,1),
-            Coord(1,1)
+            Coord(0, 0),
+            Coord(0, 2),
+            Coord(1, 3),
+            Coord(2, 1),
+            Coord(1, 1)
         ];
         
         for coord in touch_points { game.touch(vec![coord]); }
@@ -221,7 +218,7 @@ mod tests {
             .filter(|chunk| chunk.status == chunk::Status::Neighbored)
             .count();
         
-        assert_eq!(game.get_allocations(), 25);
+        assert_eq!(game.chunks.len(), 25);
         assert_eq!(active_count, 5);
     }
 }

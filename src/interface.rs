@@ -6,8 +6,11 @@ use ncurses::COLOR_PAIR;
 use game::Game;
 use game::SquareView::*;
 use aux::coord::Coord;
+use aux::index_iter::IndexIterSigned;
 
-use std::{thread, time};
+use std::thread;
+use std::time::Duration;
+use std::io::Write;
 
 const CHECKER_1: i16 = 10;
 const CHECKER_2: i16 = 11;
@@ -21,7 +24,7 @@ pub struct Interface {
     scroll: Coord<isize>,
     size: Coord<usize>,
     checker_cols: usize,
-    spread_delay: time::Duration,
+    spread_delay: Duration,
 }
 
 impl Interface {
@@ -29,6 +32,7 @@ impl Interface {
         use ncurses::*;
         
         let window = initscr();
+        
         cbreak();
         keypad(window, true);
         mousemask(ALL_MOUSE_EVENTS as mmask_t, None);
@@ -46,8 +50,8 @@ impl Interface {
         init_pair(CHECKER_2, COLOR_BLACK, COLOR_GREEN);
         
         let mut ret = Interface::default();
-        ret.spread_delay = time::Duration::from_millis(35);
-        Self::resize(&mut ret);
+        ret.spread_delay = Duration::from_millis(35);
+        ret.resize();
         return ret;
     }
 
@@ -66,14 +70,14 @@ impl Interface {
     }
     
     fn resize(&mut self) {
-        unsafe {
-            self.size = Coord(
+        self.size = unsafe {
+            Coord(
                 ncurses::LINES as usize,
                 ncurses::COLS as usize,
-            );
-        }
+            )
+        };
         
-        self.checker_cols = (self.size.1 as usize)/2;
+        self.checker_cols = self.size.1/2;
     }
     
     fn render(&self, game: &Game) {
@@ -83,30 +87,35 @@ impl Interface {
         
         ncurses::refresh();
     }
-    
-    fn checker_color(&self, row: isize, col: isize) -> i16 {
+
+    fn checker_color(&self, row: usize, col: usize) -> i16 {
         (
-            (row   + self.scroll.0 % 2) +
-            (col/2 + self.scroll.1 % 2)
+            (row     as isize) + self.scroll.0 % 2 +
+            (col as isize / 2) + self.scroll.1 % 2
         ) as i16 % 2 + CHECKER_1
+    }
+
+    fn visible_chunk_coords(&self) -> IndexIterSigned {
+        ::aux::index_iter::self_and_adjacent()
     }
     
     fn print_checkerboard(&self) { // TODO debug extra printing
         for row in 0..self.size.0 {
             for col in 0..self.size.1 {
                 with_color(
-                    self.checker_color(row as isize, col as isize),
-                    || { ncurses::mvaddch(row as i32, col as i32, ' ' as u64); }
+                    self.checker_color(row, col),
+                    ||{ ncurses::mvaddch(row as i32, col as i32, ' ' as u64); }
                 );
             }
         }
     }
     
     fn print_chunks(&self, game: &Game) {
-        let visible_chunks = ::aux::index_iter::self_and_adjacent() // TODO actually compute this value
+        let visible_chunks = self.visible_chunk_coords()
             .filter_map( |chunk_location|
-                game.get_chunk(chunk_location)
-                    .and_then(|chunk| Some((chunk_location, chunk)) )
+                game.get_chunk(chunk_location).and_then(|chunk|
+                    Some((chunk_location, chunk))
+                )
             );
             
         ncurses::attron(COLOR_PAIR(OVERLAY_1));
@@ -119,7 +128,13 @@ impl Interface {
                 let row = screen_space.0 as i32;
                 let col = screen_space.1 as i32;
                 
+                let color = self.checker_color(row as usize, col as usize);
+                
                 match view {
+                    Unclicked => with_color(color,   ||{ ncurses::mvaddstr(row, col, "  "); }),
+                    Flagged   => with_color(color,   ||{ ncurses::mvaddstr(row, col, "/>"); }),
+                    Penalty   => with_color(PENALTY, ||{ ncurses::mvaddstr(row, col, "><"); }),
+                    Points    => with_color(POINTS,  ||{ ncurses::mvaddstr(row, col, "<>"); }),
                     Clicked(neighbors) => {
                         ncurses::mvaddch(row, col, ' ' as u64);
                         ncurses::mvaddch(
@@ -127,19 +142,6 @@ impl Interface {
                             if neighbors == 0 { b' ' } else { (neighbors + b'0') } as u64
                         );
                     },
-                    Unclicked {flag, mine} => {
-                        if flag || mine {
-                            with_color(
-                                self.checker_color(row as isize, col as isize),
-                                || {
-                                    ncurses::mvaddch(row, col,   (if mine {'#'} else {' '}) as u64);
-                                    ncurses::mvaddch(row, col+1, (if flag {'F'} else {' '}) as u64);
-                                }
-                            );
-                        }
-                    },
-                    Penalty => with_color(PENALTY, || { ncurses::mvaddstr(row, col, "XX"); }),
-                    Points  => with_color(POINTS,  || { ncurses::mvaddstr(row, col, "%%"); }),
                 }
             }
         }
@@ -155,10 +157,10 @@ impl Interface {
         }
         
         let message = format!(
-            "Solved: {} | Scroll: {} | Chunks: {}",
+            "Solved: {} | Exploded: {} | Scroll: {}",
             game.get_chunks_won(),
-            self.scroll,
-            game.get_allocations()
+            game.get_chunks_lost(),
+            self.scroll
         );
         ncurses::mvaddstr(
             (self.size.0 as i32) - 1, 2,
@@ -169,9 +171,8 @@ impl Interface {
     }
     
     fn mouse_click_event(&mut self, game: &mut Game) {
-        use ncurses::MEVENT;
-        let mut mouse_event: MEVENT = unsafe { mem::uninitialized() };
-        ncurses::getmouse(&mut mouse_event as *mut MEVENT);
+        let mut mouse_event: ncurses::MEVENT = unsafe { mem::uninitialized() };
+        ncurses::getmouse(&mut mouse_event as *mut ncurses::MEVENT);
         
         let mouse_coord = Coord(mouse_event.y as usize, mouse_event.x as usize);
         let real_coord = self.screen_to_world_space(Coord::from(mouse_coord));
