@@ -20,7 +20,6 @@ const PENALTY:   i16 =  9;
 pub struct Interface {
     scroll: Coord<isize>,
     size: Coord<usize>,
-    margin: Coord<usize>,
     checker_cols: usize,
     spread_delay: time::Duration,
 }
@@ -74,8 +73,7 @@ impl Interface {
             );
         }
         
-        self.margin = Coord(1, ((self.size.0-2) as f64).log(10.0) as usize + 1);
-        self.checker_cols = (self.size.1 as usize-self.margin.1)/2;
+        self.checker_cols = (self.size.1 as usize)/2;
     }
     
     fn render(&self, game: &Game) {
@@ -94,8 +92,8 @@ impl Interface {
     }
     
     fn print_checkerboard(&self) { // TODO debug extra printing
-        for row in self.margin.0..self.size.0 {
-            for col in self.margin.1..self.size.1 {
+        for row in 0..self.size.0 {
+            for col in 0..self.size.1 {
                 with_color(
                     self.checker_color(row as isize, col as isize),
                     || { ncurses::mvaddch(row as i32, col as i32, ' ' as u64); }
@@ -151,54 +149,20 @@ impl Interface {
     fn print_overlay(&self, game: &Game) {
         ncurses::attron(COLOR_PAIR(OVERLAY_1));
         
-        // top LH corner
-        ncurses::mvaddstr(
-            0, 0,
-            format!(
-                "{:>pad$}",
-                ' ',
-                pad=self.margin.1
-            ).as_str(),
-        );
-        
-        // column labels
-        let char_from_index = |character| (character as u8 + b'a');
-        for i in 0..self.checker_cols {
-            let col = (i*2+self.margin.1) as i32;
-            
-            with_color(OVERLAY_2, || {
-                ncurses::mvaddch(0, col, char_from_index(i/26) as u64);
-            });
-            
-            ncurses::mvaddch(0, col+1, char_from_index(i%26) as u64);
-        }
-        
-        // row labels
-        for i in 0..((self.size.0 as i32) - 2) {
-            let string = format!(
-                "{:>pad$}", i,
-                pad = self.margin.1,
-            );
-            
-            ncurses::mvaddstr(i+1, 0, string.as_str());
-        }
-
-        // bottom bar
         let row = (self.size.0 - 1) as i32;
         for col in 0..(self.size.1 as i32) {
             ncurses::mvaddch(row, col, ' ' as u64);
         }
         
-        let won_message = format!(
+        let message = format!(
             "Solved: {} | Scroll: {} | Chunks: {}",
             game.get_chunks_won(),
             self.scroll,
             game.get_allocations()
         );
         ncurses::mvaddstr(
-            (self.size.0 as i32) - 1,
-            (self.margin.1 as i32) + 2,
-            won_message.as_str(),
+            (self.size.0 as i32) - 1, 2,
+            message.as_str(),
         );
 
         ncurses::attroff(COLOR_PAIR(OVERLAY_1));
@@ -239,11 +203,11 @@ impl Interface {
     }
     
     fn screen_to_world_space(&self, coord: Coord<isize>) -> Coord<isize> {
-        (coord - Coord::from(self.margin))/Coord(1,2) - self.scroll
+        coord/Coord(1,2) - self.scroll
     }
     
     fn world_to_screen_space(&self, coord: Coord<isize>) -> Coord<isize> {
-        (coord + self.scroll)*Coord(1,2) + Coord::from(self.margin)
+        (coord + self.scroll)*Coord(1,2)
     }
 }
 
