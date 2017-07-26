@@ -19,6 +19,8 @@ const OVERLAY_2: i16 = 21;
 const POINTS:    i16 =  8;
 const PENALTY:   i16 =  9;
 
+const SPREAD_DELAY_MS: u64 = 30;
+
 #[derive(Default)]
 pub struct Interface {
     scroll: Coord<isize>,
@@ -50,7 +52,7 @@ impl Interface {
         init_pair(CHECKER_2, COLOR_BLACK, COLOR_GREEN);
         
         let mut ret = Interface::default();
-        ret.spread_delay = Duration::from_millis(35);
+        ret.spread_delay = Duration::from_millis(SPREAD_DELAY_MS);
         ret.resize();
         return ret;
     }
@@ -96,7 +98,16 @@ impl Interface {
     }
 
     fn visible_chunk_coords(&self) -> IndexIterSigned {
-        ::aux::index_iter::self_and_adjacent()
+        let far_corner = self.scroll + Coord::from(self.size/Coord(1,2));
+
+        let min_modulus_offset = Coord((self.scroll.0 < 0) as isize, (self.scroll.1 < 0) as isize);
+        let max_modulus_offset = Coord((far_corner.0 >= 0) as isize, (far_corner.1 >= 0) as isize);
+        
+        let min: Coord<isize> = self.scroll/8 - min_modulus_offset;
+        let max: Coord<isize> = far_corner/8  + max_modulus_offset;
+        let dimension = (max - min).abs();
+
+        IndexIterSigned::new(dimension, min)
     }
     
     fn print_checkerboard(&self) { // TODO debug extra printing
@@ -195,20 +206,20 @@ impl Interface {
     
     fn arrow_key_event(&mut self, arrow: i32) {
         self.scroll += match arrow {
-            ncurses::KEY_UP    => Coord( 1,  0),
-            ncurses::KEY_DOWN  => Coord(-1,  0),
-            ncurses::KEY_LEFT  => Coord( 0,  1),
-            ncurses::KEY_RIGHT => Coord( 0, -1),
+            ncurses::KEY_UP    => Coord(-1,  0),
+            ncurses::KEY_DOWN  => Coord( 1,  0),
+            ncurses::KEY_LEFT  => Coord( 0, -1),
+            ncurses::KEY_RIGHT => Coord( 0,  1),
             _ => unreachable!(),
         };
     }
     
     fn screen_to_world_space(&self, coord: Coord<isize>) -> Coord<isize> {
-        coord/Coord(1,2) - self.scroll
+        coord/Coord(1,2) + self.scroll
     }
     
     fn world_to_screen_space(&self, coord: Coord<isize>) -> Coord<isize> {
-        (coord + self.scroll)*Coord(1,2)
+        (coord - self.scroll)*Coord(1,2)
     }
 }
 

@@ -14,12 +14,18 @@ pub trait Coordinate:
 impl Coordinate for isize {}
 impl Coordinate for usize {}
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Coord<T: Coordinate>(pub T, pub T);
 
 impl<T: fmt::Display + Coordinate> fmt::Display for Coord<T> {
     fn fmt (&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({}, {})", self.0, self.1)
+    }
+}
+
+impl<T: fmt::Debug + Coordinate> fmt::Debug for Coord<T> {
+    fn fmt (&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({:?}, {:?})", self.0, self.1)
     }
 }
 
@@ -169,6 +175,15 @@ impl From<Coord<isize>> for Coord<usize> {
         Coord(
             src.0 as usize,
             src.1 as usize,
+        )
+    }
+}
+
+impl Coord<isize> {
+    pub fn abs(self) -> Coord<isize> {
+        Coord(
+            self.0.abs(),
+            self.1.abs(),
         )
     }
 }

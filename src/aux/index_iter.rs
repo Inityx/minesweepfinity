@@ -13,7 +13,7 @@ pub const CARDINAL_OFFSETS: &'static [Coord<isize>;4] = &[
 pub struct IndexIterSigned {
     count: isize,
     limit: isize,
-    dim_zero: isize,
+    dim_one: isize,
     offset: Coord<isize>,
 }
 
@@ -22,7 +22,7 @@ impl IndexIterSigned {
         IndexIterSigned {
             count: 0,
             limit: (dimension.0 * dimension.1),
-            dim_zero: dimension.0,
+            dim_one: dimension.1,
             offset: offset,
         }
     }
@@ -35,8 +35,8 @@ impl Iterator for IndexIterSigned {
         if self.count >= self.limit { return None; }
         
         let ret = Coord(
-            self.count/self.dim_zero + self.offset.0,
-            self.count%self.dim_zero + self.offset.1,
+            self.count/self.dim_one + self.offset.0,
+            self.count%self.dim_one + self.offset.1,
         );
         
         self.count += 1;
@@ -48,7 +48,7 @@ impl Iterator for IndexIterSigned {
 pub struct IndexIterUnsigned {
     count: usize,
     limit: usize,
-    dim_zero: usize,
+    dim_one: usize,
     offset: Coord<usize>
 }
 
@@ -57,7 +57,7 @@ impl IndexIterUnsigned {
         IndexIterUnsigned {
             count: 0,
             limit: (dimension.0 * dimension.1),
-            dim_zero: dimension.0,
+            dim_one: dimension.1,
             offset: offset,
         }
     }
@@ -70,8 +70,8 @@ impl Iterator for IndexIterUnsigned {
         if self.count >= self.limit { return None; }
         
         let ret = Coord(
-            self.count/self.dim_zero + self.offset.0,
-            self.count%self.dim_zero + self.offset.1,
+            self.count/self.dim_one + self.offset.0,
+            self.count%self.dim_one + self.offset.1,
         );
         
         self.count += 1;
