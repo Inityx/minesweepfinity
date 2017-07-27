@@ -7,6 +7,7 @@ use game::Game;
 use game::SquareView::*;
 use aux::coord::Coord;
 use aux::index_iter::{IndexIterSigned, IndexIterUnsigned};
+use aux::DivFloorSignedExt;
 
 use std::thread;
 use std::time::Duration;
@@ -100,11 +101,8 @@ impl Interface {
     fn visible_chunk_coords(&self) -> IndexIterSigned {
         let far_corner = self.scroll + Coord::from(self.size/Coord(1,2));
 
-        let min_modulus_offset = Coord((self.scroll.0 < 0) as isize, (self.scroll.1 < 0) as isize);
-        let max_modulus_offset = Coord((far_corner.0 >= 0) as isize, (far_corner.1 >= 0) as isize);
-        
-        let min: Coord<isize> = self.scroll/8 - min_modulus_offset;
-        let max: Coord<isize> = far_corner/8  + max_modulus_offset;
+        let min: Coord<isize> = self.scroll.div_floor(8);
+        let max: Coord<isize> = far_corner.div_floor(8) + 1;
         let dimension = (max - min).abs();
 
         IndexIterSigned::new(dimension, min)

@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use self::chunk::Chunk;
 use ::aux::index_iter;
 use ::aux::coord::Coord;
+use ::aux::{ModuloSignedExt, DivFloorSignedExt};
 
 
 type Board = HashMap<Coord<isize>, Chunk>;
@@ -32,22 +33,10 @@ impl Game {
     pub fn get_chunk(&self, coord: Coord<isize>) -> Option<&Chunk> { self.chunks.get(&coord) }
     
     fn world_to_chunk_square(input_coord: Coord<isize>) -> (Coord<isize>, Coord<usize>) {
-        // Having % as Remainder instead of Modulo is fun
-        let negative_offset = Coord(
-            (input_coord.0 < 0) as isize,
-            (input_coord.1 < 0) as isize
-        );
+        let chunk_coord  = input_coord.div_floor(chunk::DIMENSION as isize);
+        let square_coord = input_coord.modulo   (chunk::DIMENSION as isize);
         
-        let chunk_coord = (
-            input_coord + negative_offset
-        ) / chunk::DIMENSION as isize - negative_offset;
-        
-        let square_coord: Coord<usize> = Coord::from(
-            (input_coord % chunk::DIMENSION as isize) +
-                (negative_offset * chunk::DIMENSION as isize)
-        ) % chunk::DIMENSION;
-        
-        return (chunk_coord, square_coord);
+        return (chunk_coord, Coord::from(square_coord));
     }
     
     fn allocate_with_surround(&mut self, chunk_coord: Coord<isize>, square_coord: Coord<usize>) {
