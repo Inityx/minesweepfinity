@@ -6,7 +6,7 @@ use ncurses::COLOR_PAIR;
 use game::Game;
 use game::SquareView::*;
 use aux::coord::Coord;
-use aux::index_iter::IndexIterSigned;
+use aux::index_iter::{IndexIterSigned, IndexIterUnsigned};
 
 use std::thread;
 use std::time::Duration;
@@ -84,7 +84,7 @@ impl Interface {
     
     fn render(&self, game: &Game) {
         self.print_checkerboard();
-        self.print_chunks (game);
+        self.print_chunks(game);
         self.print_overlay(game);
         
         ncurses::refresh();
@@ -110,14 +110,15 @@ impl Interface {
         IndexIterSigned::new(dimension, min)
     }
     
-    fn print_checkerboard(&self) { // TODO debug extra printing
-        for row in 0..self.size.0 {
-            for col in 0..self.size.1 {
-                with_color(
-                    self.checker_color(row, col),
-                    ||{ ncurses::mvaddch(row as i32, col as i32, ' ' as u64); }
-                );
-            }
+    fn print_checkerboard(&self) {
+        let checker_size = self.size / Coord(1,2);
+        for coord in IndexIterUnsigned::new(checker_size, Coord(0,0))
+            .map(|coord| coord*Coord(1,2))
+        {
+            with_color(
+                self.checker_color(coord.0, coord.1),
+                ||{ ncurses::mvaddstr(coord.0 as i32, coord.1 as i32, "  "); }
+            );
         }
     }
     
@@ -135,11 +136,12 @@ impl Interface {
                 
                 let world_space = chunk_location*8 + Coord::from(Coord(index/8, index%8));
                 let screen_space = self.world_to_screen_space(world_space);
+
+                let color = self.checker_color(screen_space.0, screen_space.1);
                 
                 let row = screen_space.0 as i32;
                 let col = screen_space.1 as i32;
                 
-                let color = self.checker_color(row as usize, col as usize);
                 
                 match view {
                     Unclicked => with_color(color,   ||{ ncurses::mvaddstr(row, col, "  "); }),
@@ -186,7 +188,7 @@ impl Interface {
         ncurses::getmouse(&mut mouse_event as *mut ncurses::MEVENT);
         
         let mouse_coord = Coord(mouse_event.y as usize, mouse_event.x as usize);
-        let real_coord = self.screen_to_world_space(Coord::from(mouse_coord));
+        let real_coord = self.screen_to_world_space(mouse_coord);
         
         if (mouse_event.bstate & ncurses::BUTTON1_PRESSED as ncurses::mmask_t) != 0 {
             // Spreading click cascade
@@ -214,12 +216,12 @@ impl Interface {
         };
     }
     
-    fn screen_to_world_space(&self, coord: Coord<isize>) -> Coord<isize> {
-        coord/Coord(1,2) + self.scroll
+    fn screen_to_world_space(&self, coord: Coord<usize>) -> Coord<isize> {
+        self.scroll + Coord::from(coord/Coord(1,2))
     }
     
-    fn world_to_screen_space(&self, coord: Coord<isize>) -> Coord<isize> {
-        (coord - self.scroll)*Coord(1,2)
+    fn world_to_screen_space(&self, coord: Coord<isize>) -> Coord<usize> {
+        Coord::from((coord - self.scroll) * Coord(1,2))
     }
 }
 
