@@ -7,7 +7,7 @@ use game::Game;
 use game::SquareView::*;
 use aux::coord::Coord;
 use aux::index_iter::{IndexIterSigned, IndexIterUnsigned};
-use aux::DivFloorSignedExt;
+use aux::{ModuloSignedExt, DivFloorSignedExt};
 
 use std::thread;
 use std::time::Duration;
@@ -91,11 +91,12 @@ impl Interface {
         ncurses::refresh();
     }
 
-    fn checker_color(&self, row: usize, col: usize) -> i16 {
+    fn checker_color(&self, coord: Coord<usize>) -> i16 {
+        let checker_coord = coord/Coord(1,2);
         (
-            (row     as isize) + self.scroll.0 % 2 +
-            (col as isize / 2) + self.scroll.1 % 2
-        ) as i16 % 2 + CHECKER_1
+            (self.scroll   % 2).sum() +
+            (checker_coord % 2).sum() as isize
+        ).modulo(2) as i16 + CHECKER_1
     }
 
     fn visible_chunk_coords(&self) -> IndexIterSigned {
@@ -114,7 +115,7 @@ impl Interface {
             .map(|coord| coord*Coord(1,2))
         {
             with_color(
-                self.checker_color(coord.0, coord.1),
+                self.checker_color(coord),
                 ||{ ncurses::mvaddstr(coord.0 as i32, coord.1 as i32, "  "); }
             );
         }
@@ -128,14 +129,13 @@ impl Interface {
                 )
             );
             
-        ncurses::attron(COLOR_PAIR(OVERLAY_1));
         for (chunk_location, chunk) in visible_chunks {
             for (index, view) in chunk.view().into_iter().enumerate() {
                 
                 let world_space = chunk_location*8 + Coord::from(Coord(index/8, index%8));
                 let screen_space = self.world_to_screen_space(world_space);
 
-                let color = self.checker_color(screen_space.0, screen_space.1);
+                let color = self.checker_color(screen_space);
                 
                 let row = screen_space.0 as i32;
                 let col = screen_space.1 as i32;
@@ -146,39 +146,39 @@ impl Interface {
                     Flagged   => with_color(color,   ||{ ncurses::mvaddstr(row, col, "/>"); }),
                     Penalty   => with_color(PENALTY, ||{ ncurses::mvaddstr(row, col, "><"); }),
                     Points    => with_color(POINTS,  ||{ ncurses::mvaddstr(row, col, "<>"); }),
-                    Clicked(neighbors) => {
-                        ncurses::mvaddch(row, col, ' ' as u64);
-                        ncurses::mvaddch(
-                            row, col+1,
-                            if neighbors == 0 { b' ' } else { (neighbors + b'0') } as u64
-                        );
-                    },
+                    Clicked(neighbors) => with_color(
+                        OVERLAY_1,
+                        ||{
+                            ncurses::mvaddch(row, col, ' ' as u64);
+                            ncurses::mvaddch(
+                                row, col+1,
+                                if neighbors == 0 { b' ' } else { (neighbors + b'0') } as u64
+                            );
+                        }
+                    ),
                 }
             }
         }
-        ncurses::attroff(COLOR_PAIR(OVERLAY_1));
     }
 
     fn print_overlay(&self, game: &Game) {
-        ncurses::attron(COLOR_PAIR(OVERLAY_1));
-        
         let row = (self.size.0 - 1) as i32;
-        for col in 0..(self.size.1 as i32) {
-            ncurses::mvaddch(row, col, ' ' as u64);
-        }
-        
         let message = format!(
             "Solved: {} | Exploded: {} | Scroll: {}",
             game.get_chunks_won(),
             game.get_chunks_lost(),
             self.scroll
         );
-        ncurses::mvaddstr(
-            (self.size.0 as i32) - 1, 2,
-            message.as_str(),
-        );
 
-        ncurses::attroff(COLOR_PAIR(OVERLAY_1));
+        with_color(OVERLAY_1,||{
+            for col in 0..(self.size.1 as i32) {
+                ncurses::mvaddch(row, col, ' ' as u64);
+            }
+            ncurses::mvaddstr(
+                (self.size.0 as i32) - 1, 2,
+                message.as_str(),
+            );
+        });
     }
     
     fn mouse_click_event(&mut self, game: &mut Game) {

@@ -124,6 +124,12 @@ impl From<Coord<isize>> for Coord<usize> {
 
 
 // impl
+impl<T: Coordinate> Coord<T> where T: Add<Output = T> {
+    pub fn sum(self) -> T {
+        self.0 + self.1
+    }
+}
+
 impl Coord<isize> {
     pub fn abs(self) -> Self {
         Coord(
