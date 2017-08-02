@@ -191,20 +191,22 @@ mod tests {
     #[test]
     fn chunk_cascade() {
         let mut game: Game = Game::default();
-        let touch_points = vec![
-            Coord(0, 0),
-            Coord(0, 2),
-            Coord(1, 3),
-            Coord(2, 1),
-            Coord(1, 1)
+        let touch_points: [Coord<isize>;5] = [
+            Coord( 0,  0),
+            Coord( 0, 16),
+            Coord( 8, 24),
+            Coord(16,  8),
+            Coord( 8,  8),
         ];
         
-        for coord in touch_points { game.touch(vec![coord]); }
+        for coord in touch_points.iter() {
+            game.touch(vec![*coord]);
+        }
         
         let active_count = game
             .chunks
             .values()
-            .filter(|chunk| chunk.status == chunk::Status::Neighbored)
+            .filter(|chunk| chunk.status != chunk::Status::Enmined)
             .count();
         
         assert_eq!(game.chunks.len(), 25);
