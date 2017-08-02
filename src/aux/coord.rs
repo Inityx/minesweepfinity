@@ -14,12 +14,15 @@ pub trait Coordinate:
     Copy +
     Eq {}
 
-impl Coordinate for isize {}
-impl Coordinate for usize {}
+macro_rules! impl_trait_coordinate {
+    ($($t: ty)*) => ($(impl Coordinate for $t {})*)
+}
+
+impl_trait_coordinate! { isize usize i32 u32 }
+
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Coord<T: Coordinate>(pub T, pub T);
-
 
 // FMT
 impl<T: fmt::Display + Coordinate> fmt::Display for Coord<T> {
@@ -33,7 +36,6 @@ impl<T: fmt::Debug + Coordinate> fmt::Debug for Coord<T> {
         write!(f, "({:?}, {:?})", self.0, self.1)
     }
 }
-
 
 // ops
 macro_rules! coord_op_self_impl {
@@ -122,7 +124,6 @@ impl From<Coord<isize>> for Coord<usize> {
     }
 }
 
-
 // impl
 impl<T: Coordinate> Coord<T> where T: Add<Output = T> {
     pub fn sum(self) -> T {
@@ -136,5 +137,19 @@ impl Coord<isize> {
             self.0.abs(),
             self.1.abs(),
         )
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn sanity() {
+        let coord = Coord(5,6);
+        
+        assert_eq!(5, coord.0);
+        assert_eq!(6, coord.1);
     }
 }
