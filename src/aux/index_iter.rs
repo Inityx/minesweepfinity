@@ -93,8 +93,8 @@ mod tests {
     use std::vec::Vec;
     
     #[test]
-    fn chunk_index() {
-        let index_iter = IndexIterUnsigned::new(Coord(8,8), Coord(0,0));
+    fn eight_square_index_unsigned() {
+        let index_vec = IndexIterUnsigned::new(Coord(8,8), Coord(0,0)).collect::<Vec<Coord<usize>>>();
         let mut full_vec = Vec::with_capacity(64);
         
         for i in 0..8 {
@@ -103,13 +103,26 @@ mod tests {
             }
         }
         
-        let index_vec = index_iter.collect::<Vec<Coord<usize>>>();
+        assert_eq!(index_vec, full_vec);
+    }
+    
+    #[test]
+    fn eight_square_index_signed() {
+        let index_vec = IndexIterSigned::new(Coord(8,8), Coord(-4,-4)).collect::<Vec<Coord<isize>>>();
+        let mut full_vec = Vec::with_capacity(64);
+        
+        for i in -4..4 {
+            for j in -4..4 {
+                full_vec.push(Coord(i, j));
+            }
+        }
+        
         assert_eq!(index_vec, full_vec);
     }
     
     #[test]
     fn adjacent_index() {
-        let index_iter = super::self_and_adjacent();
+        let index_vec = super::self_and_adjacent().collect::<Vec<Coord<isize>>>();
         let mut full_vec = Vec::with_capacity(9);
         
         for i in -1..2 {
@@ -118,7 +131,34 @@ mod tests {
             }
         }
         
-        let index_vec = index_iter.collect::<Vec<Coord<isize>>>();
+        assert_eq!(index_vec, full_vec);
+    }
+    
+    #[test]
+    fn nonsquare_unsigned() {
+        let index_vec = IndexIterUnsigned::new(Coord(3,5), Coord(0,0)).collect::<Vec<Coord<usize>>>();
+        let mut full_vec = Vec::with_capacity(15);
+        
+        for i in 0..3 {
+            for j in 0..5 {
+                full_vec.push(Coord(i,j));
+            }
+        }
+        
+        assert_eq!(index_vec, full_vec);
+    }
+    
+    #[test]
+    fn nonsquare_signed() {
+        let index_vec = IndexIterSigned::new(Coord(3,5), Coord(-1,-2)).collect::<Vec<Coord<isize>>>();
+        let mut full_vec = Vec::with_capacity(15);
+        
+        for i in -1..2 {
+            for j in -2..3 {
+                full_vec.push(Coord(i,j));
+            }
+        }
+        
         assert_eq!(index_vec, full_vec);
     }
 }
