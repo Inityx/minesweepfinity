@@ -140,7 +140,6 @@ impl Interface {
                 let row = screen_space.0 as i32;
                 let col = screen_space.1 as i32;
                 
-                
                 match view {
                     Unclicked => with_color(color,   ||{ ncurses::mvaddstr(row, col, "  "); }),
                     Flagged   => with_color(color,   ||{ ncurses::mvaddstr(row, col, "/>"); }),
