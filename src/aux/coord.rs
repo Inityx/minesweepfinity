@@ -1,46 +1,36 @@
 use std::ops::*;
 use std::fmt;
 
-use super::ModuloSignedExt;
-use super::DivFloorSignedExt;
-
-pub trait Coordinate:
-    Add +
-    AddAssign +
-    Mul +
-    Div +
-    Rem +
-    Clone +
-    Copy +
-    Eq {}
-
-macro_rules! impl_trait_coordinate {
-    ($($t: ty)*) => ($(impl Coordinate for $t {})*)
-}
-
-impl_trait_coordinate! { isize usize i32 u32 }
-
-
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub struct Coord<T: Coordinate>(pub T, pub T);
+pub struct Coord<T>(pub T, pub T);
 
-// FMT
-impl<T: fmt::Display + Coordinate> fmt::Display for Coord<T> {
-    fn fmt (&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({}, {})", self.0, self.1)
+impl<T> Coord<T> {
+    pub fn sum(self) -> T where T: Add<Output=T> {
+        self.0 + self.1
+    }
+
+    pub fn map<U>(self, mut func: impl FnMut(T) -> U) -> Coord<U> {
+        let Coord(x, y) = self;
+        Coord(func(x), func(y))
     }
 }
 
-impl<T: fmt::Debug + Coordinate> fmt::Debug for Coord<T> {
+impl<T: fmt::Debug> fmt::Debug for Coord<T> {
     fn fmt (&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({:?}, {:?})", self.0, self.1)
     }
 }
 
-// ops
-macro_rules! coord_op_self_impl {
+impl<T: fmt::Display> fmt::Display for Coord<T> {
+    fn fmt (&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {})", self.0, self.1)
+    }
+}
+
+macro_rules! coord_op_impl {
     ( $(($trait: ident, $func: ident),)* ) => ( $(
-        impl<T: Coordinate> $trait<Self> for Coord<T> where T: $trait<Output = T> {
+        // Self
+        impl<T> $trait<Self> for Coord<T> where T: $trait<Output = T> {
             type Output = Self;
 
             #[inline]
@@ -54,58 +44,29 @@ macro_rules! coord_op_self_impl {
     )* )
 }
 
-coord_op_self_impl! {
+coord_op_impl! {
     (Add, add),
     (Sub, sub),
     (Mul, mul),
     (Div, div),
     (Rem, rem),
-    (ModuloSignedExt, modulo),
-    (DivFloorSignedExt, div_floor),
 }
 
-macro_rules! coord_op_t_impl {
-    ( $(($trait: ident, $func: ident),)* ) => ( $(
-        impl<T: Coordinate> $trait<T> for Coord<T> where T: $trait<Output = T> {
-            type Output = Self;
-
-            #[inline]
-            fn $func(self, rhs: T) -> Self {
-                Coord(
-                    $trait::$func(self.0, rhs),
-                    $trait::$func(self.1, rhs),
-                )
-            }
-        }
-    )* )
-}
-
-coord_op_t_impl! {
-    (Add, add),
-    (Sub, sub),
-    (Mul, mul),
-    (Div, div),
-    (Rem, rem),
-    (ModuloSignedExt, modulo),
-    (DivFloorSignedExt, div_floor),
-}
-
-impl<T: Coordinate> AddAssign<Self> for Coord<T> {
+impl<T: AddAssign> AddAssign<Self> for Coord<T> {
     fn add_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;
         self.1 += rhs.1;
     }
 }
 
-impl<T: Coordinate> AddAssign<T> for Coord<T> {
+impl<T: AddAssign + Clone> AddAssign<T> for Coord<T> {
     fn add_assign(&mut self, rhs: T) {
-        self.0 += rhs;
+        self.0 += rhs.clone();
         self.1 += rhs;
     }
 }
 
 
-// From<Self<T>>
 impl From<Coord<usize>> for Coord<isize> {
     fn from(src: Coord<usize>) -> Self {
         Coord(
@@ -124,20 +85,12 @@ impl From<Coord<isize>> for Coord<usize> {
     }
 }
 
-// impl
-impl<T: Coordinate> Coord<T> where T: Add<Output = T> {
-    pub fn sum(self) -> T {
-        self.0 + self.1
-    }
+impl<T> From<(T, T)> for Coord<T> {
+    fn from((x, y): (T, T)) -> Self { Coord(x, y) }
 }
 
 impl Coord<isize> {
-    pub fn abs(self) -> Self {
-        Coord(
-            self.0.abs(),
-            self.1.abs(),
-        )
-    }
+    pub fn abs(self) -> Self { self.map(isize::abs) }
 }
 
 

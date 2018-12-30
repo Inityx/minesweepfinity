@@ -1,17 +1,23 @@
-use std::mem;
+use crate::{
+    aux::{
+        coord::Coord,
+        index_iter::{IndexIterSigned, IndexIterUnsigned},
+        ModuloSignedExt,
+        DivFloorSignedExt,
+    },
+    game::{
+        Game,
+        SquareView::*,
+    },
+};
 
-use ncurses;
-use ncurses::COLOR_PAIR;
+use std::{
+    thread,
+    time::Duration,
+    mem,
+};
 
-use game::Game;
-use game::SquareView::*;
-use aux::coord::Coord;
-use aux::index_iter::{IndexIterSigned, IndexIterUnsigned};
-use aux::{ModuloSignedExt, DivFloorSignedExt};
-
-use std::thread;
-use std::time::Duration;
-use std::io::Write;
+use ncurses::{self, COLOR_PAIR};
 
 const CHECKER_1: i16 = 10;
 const CHECKER_2: i16 = 11;
@@ -46,7 +52,7 @@ impl Interface {
         start_color();
         for i in 0..POINTS { init_pair(i, COLOR_WHITE, COLOR_BLACK); }
         init_pair(POINTS,  COLOR_BLACK, COLOR_YELLOW);
-        init_pair(PENALTY, COLOR_BLUE,  COLOR_RED);
+        init_pair(PENALTY, COLOR_YELLOW,  COLOR_RED);
         init_pair(OVERLAY_1, COLOR_WHITE, COLOR_BLACK);
         init_pair(OVERLAY_2, COLOR_GREEN, COLOR_BLACK);
         init_pair(CHECKER_1, COLOR_BLACK, COLOR_WHITE);
@@ -59,51 +65,63 @@ impl Interface {
     }
 
     pub fn play(&mut self, mut game: Game) {
-        self.render(&game);
+        self.render_full(&game);
+        
         loop {
-            let character = ncurses::getch();
-            match character {
-                ncurses::KEY_RESIZE => self.resize(),
-                ncurses::KEY_MOUSE => self.mouse_click_event(&mut game),
-                ncurses::KEY_DOWN...ncurses::KEY_RIGHT => self.arrow_key_event(character),
+            match ncurses::getch() {
+                ncurses::KEY_MOUSE => {
+                    self.mouse_click_event(&mut game);
+                    self.render_partial(&game);
+                },
+                ncurses::KEY_RESIZE => {
+                    self.resize();
+                    self.render_full(&game);
+                },
+                character @ ncurses::KEY_DOWN..=ncurses::KEY_RIGHT => {
+                    self.arrow_key_event(character);
+                    self.render_full(&game);
+                },
                 _ => ()
             }
-            self.render(&game);
         }
+    }
+
+    fn render_partial(&self, game: &Game) {
+        self.print_chunks(game);
+        self.print_overlay(game);
+        ncurses::refresh();
+    }
+
+    fn render_full(&self, game: &Game) {
+        self.print_checkerboard();
+        self.print_chunks(game);
+        self.print_overlay(game);
+        ncurses::refresh();
     }
     
     fn resize(&mut self) {
-        self.size = unsafe {
-            Coord(
-                ncurses::LINES as usize,
-                ncurses::COLS as usize,
-            )
-        };
+        self.size = Coord(
+            // Safe because extern statics are not being modified
+            unsafe { ncurses::LINES } as usize,
+            unsafe { ncurses::COLS } as usize,
+        );
         
         self.checker_cols = self.size.1/2;
     }
     
-    fn render(&self, game: &Game) {
-        self.print_checkerboard();
-        self.print_chunks(game);
-        self.print_overlay(game);
-        
-        ncurses::refresh();
-    }
-
     fn checker_color(&self, coord: Coord<usize>) -> i16 {
         let checker_coord = coord/Coord(1,2);
         (
-            (self.scroll   % 2).sum() +
-            (checker_coord % 2).sum() as isize
+            self.scroll.map(|x| x % 2).sum() +
+            checker_coord.map(|x| x % 2).sum() as isize
         ).modulo(2) as i16 + CHECKER_1
     }
 
     fn visible_chunk_coords(&self) -> IndexIterSigned {
         let far_corner = self.scroll + Coord::from(self.size/Coord(1,2));
 
-        let min: Coord<isize> = self.scroll.div_floor(8);
-        let max: Coord<isize> = far_corner.div_floor(8) + 1;
+        let min: Coord<isize> = self.scroll.map(|x| x.div_floor(8));
+        let max: Coord<isize> = far_corner.map(|x| x.div_floor(8) + 1);
         let dimension = (max - min).abs();
 
         IndexIterSigned::new(dimension, min)
@@ -111,28 +129,29 @@ impl Interface {
     
     fn print_checkerboard(&self) {
         let checker_size = self.size / Coord(1,2);
-        for coord in IndexIterUnsigned::new(checker_size, Coord(0,0))
-            .map(|coord| coord*Coord(1,2))
-        {
-            with_color(
-                self.checker_color(coord),
-                ||{ ncurses::mvaddstr(coord.0 as i32, coord.1 as i32, "  "); }
+        IndexIterUnsigned::new(checker_size, Coord(0,0))
+            .map(|coord| coord * Coord(1,2))
+            .for_each(|square|
+                with_color(
+                    self.checker_color(square),
+                    || { ncurses::mvaddstr(square.0 as i32, square.1 as i32, "  "); }
+                )
             );
-        }
     }
     
     fn print_chunks(&self, game: &Game) {
-        let visible_chunks = self.visible_chunk_coords()
-            .filter_map( |chunk_location|
-                game.get_chunk(chunk_location).and_then(|chunk|
-                    Some((chunk_location, chunk))
-                )
+        let visible_chunks = self
+            .visible_chunk_coords()
+            .filter_map(|chunk_location|
+                game
+                    .chunks()
+                    .get(&chunk_location)
+                    .map(|chunk| (chunk_location, chunk))
             );
             
-        for (chunk_location, chunk) in visible_chunks {
+        for (location, chunk) in visible_chunks {
             for (index, view) in chunk.view().into_iter().enumerate() {
-                
-                let world_space = chunk_location*8 + Coord::from(Coord(index/8, index%8));
+                let world_space = location.map(|x| x * 8) + Coord::from(Coord(index/8, index%8));
                 let screen_space = self.world_to_screen_space(world_space);
 
                 let color = self.checker_color(screen_space);
@@ -147,7 +166,7 @@ impl Interface {
                     Points    => with_color(POINTS,  ||{ ncurses::mvaddstr(row, col, "<>"); }),
                     Clicked(neighbors) => with_color(
                         OVERLAY_1,
-                        ||{
+                        || {
                             ncurses::mvaddch(row, col, ' ' as u64);
                             ncurses::mvaddch(
                                 row, col+1,
@@ -164,8 +183,8 @@ impl Interface {
         let row = (self.size.0 - 1) as i32;
         let message = format!(
             "Solved: {} | Exploded: {} | Scroll: {}",
-            game.get_chunks_won(),
-            game.get_chunks_lost(),
+            game.chunks_won(),
+            game.chunks_lost(),
             self.scroll
         );
 
@@ -191,11 +210,11 @@ impl Interface {
             // Spreading click cascade
             let mut to_click = vec![real_coord];
             
-            while let Some(fringe) = game.touch(to_click) {
+            while let Some(fringe) = game.touch(&to_click) {
+                to_click = fringe;
                 self.print_chunks (game);
                 self.print_overlay(game);
                 ncurses::refresh();
-                to_click = fringe;
                 thread::sleep(self.spread_delay);
             }
         } else if (mouse_event.bstate & ncurses::BUTTON3_PRESSED as ncurses::mmask_t) != 0 {
@@ -204,11 +223,12 @@ impl Interface {
     }
     
     fn arrow_key_event(&mut self, arrow: i32) {
+        use ncurses::*;
         self.scroll += match arrow {
-            ncurses::KEY_UP    => Coord(-1,  0),
-            ncurses::KEY_DOWN  => Coord( 1,  0),
-            ncurses::KEY_LEFT  => Coord( 0, -1),
-            ncurses::KEY_RIGHT => Coord( 0,  1),
+            KEY_UP    => Coord(-1,  0),
+            KEY_DOWN  => Coord( 1,  0),
+            KEY_LEFT  => Coord( 0, -1),
+            KEY_RIGHT => Coord( 0,  1),
             _ => unreachable!(),
         };
     }

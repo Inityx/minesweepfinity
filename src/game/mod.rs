@@ -1,14 +1,15 @@
 mod chunk;
 
-use std::collections::HashMap;
-
 use self::chunk::Chunk;
-use ::aux::index_iter;
-use ::aux::coord::Coord;
-use ::aux::{ModuloSignedExt, DivFloorSignedExt};
+use crate::aux::{
+    index_iter::IndexIterSigned,
+    coord::Coord,
+    ModuloSignedExt,
+    DivFloorSignedExt,
+    OptionalizeExt,
+};
 
-
-type Board = HashMap<Coord<isize>, Chunk>;
+type Board = hashbrown::HashMap<Coord<isize>, Chunk>;
 
 #[derive(Debug)]
 pub enum SquareView {
@@ -26,60 +27,60 @@ pub struct Game {
     chunks_lost: u64,
 }
 
+fn world_to_chunk_square(input_coord: Coord<isize>) -> (Coord<isize>, Coord<usize>) {
+    let chunk_coord  = input_coord.map(|x| x.div_floor(chunk::DIMENSION as isize));
+    let square_coord = input_coord.map(|x| x.modulo   (chunk::DIMENSION as isize)).into();
+    
+    (chunk_coord, square_coord)
+}
+    
 impl Game {
-    pub fn get_chunks_won(&self) -> u64 { self.chunks_won }
-    pub fn get_chunks_lost(&self) -> u64 { self.chunks_lost }
+    pub fn new() -> Self { Game::default() }
+    pub fn chunks_won(&self) -> u64 { self.chunks_won }
+    pub fn chunks_lost(&self) -> u64 { self.chunks_lost }
+    pub fn chunks(&self) -> &Board { &self.chunks }
     
-    pub fn get_chunk(&self, coord: Coord<isize>) -> Option<&Chunk> { self.chunks.get(&coord) }
-    
-    fn world_to_chunk_square(input_coord: Coord<isize>) -> (Coord<isize>, Coord<usize>) {
-        let chunk_coord  = input_coord.div_floor(chunk::DIMENSION as isize);
-        let square_coord = input_coord.modulo   (chunk::DIMENSION as isize);
-        
-        return (chunk_coord, Coord::from(square_coord));
-    }
-    
-    fn allocate_with_surround(&mut self, chunk_coord: Coord<isize>, square_coord: Coord<usize>) {
-        // Ensure first click is not a mine
-        if !self.chunks.contains_key(&chunk_coord) {
-            let mut insert = Chunk::with_mines();
-            while insert.is_mine(square_coord) { insert = Chunk::with_mines(); }
-        
-            self.chunks.insert(chunk_coord, insert);
+    fn allocate_with_surround(&mut self, chunk: Coord<isize>, square: Coord<usize>) {
+        use hashbrown::hash_map::Entry::Vacant;
+
+        if let Vacant(entry) = self.chunks.entry(chunk) {
+            entry.insert(loop {
+                // Ensure first click is not a mine
+                let insert = Chunk::with_mines();
+                if insert.is_mine(square) { continue; }
+                break insert;
+            });
         }
         
-        // Find unallocated adjacent chunks
-        let unallocated_chunk_coords = index_iter::self_and_adjacent()
-            .map(|offset| chunk_coord + offset)
-            .filter(|chunk_coord| !self.chunks.contains_key(&chunk_coord))
-            .collect::<Vec<Coord<isize>>>();
-        
-        for chunk_coord in unallocated_chunk_coords.into_iter() {
-            self.chunks.insert(chunk_coord, Chunk::with_mines());
-        }
+        IndexIterSigned::self_and_adjacent(chunk)
+            .filter(|&coord| coord != chunk)
+            .for_each(|coord|
+                if let Vacant(entry) = self.chunks.entry(coord) {
+                    entry.insert(Chunk::with_mines());
+                }
+            );
     }
     
-    pub fn touch(&mut self, world_coords: Vec<Coord<isize>>) -> Option<Vec<Coord<isize>>> {
-        // 64 to avoid early small reallocations
+    pub fn touch(&mut self, world_coords: &[Coord<isize>]) -> Option<Vec<Coord<isize>>> {
         let mut to_click = Vec::with_capacity(64);
         
-        for world_coord in world_coords {
-            let (chunk_coord, square_coord) = Self::world_to_chunk_square(world_coord);
+        for &world_coord in world_coords {
+            let (chunk, square) = world_to_chunk_square(world_coord);
             // Allocate chunk & surround and calculate if not yet done
-            self.allocate_with_surround(chunk_coord, square_coord);
-            self.calc_neighbors(chunk_coord);
+            self.allocate_with_surround(chunk, square);
+            self.calc_neighbors(chunk);
             
             {
-                let touched_chunk = self.chunks.get_mut(&chunk_coord).unwrap();
+                let touched_chunk = self.chunks.get_mut(&chunk).unwrap();
                 
                 // Skip if square has already been clicked
-                if touched_chunk.is_clicked(square_coord) { continue; }
+                if touched_chunk.is_clicked(square) { continue; }
                 
                 // Actually click
-                touched_chunk.unflag(square_coord);
-                touched_chunk.click(square_coord);
+                touched_chunk.unflag(square);
+                touched_chunk.click(square);
                 
-                if touched_chunk.is_mine(square_coord) {
+                if touched_chunk.is_mine(square) {
                     touched_chunk.status = chunk::Status::Lost;
                     self.chunks_lost += 1;
                     return None;
@@ -92,30 +93,25 @@ impl Game {
             }
             
             // If safe, add adjacent to fringe vector
-            if self.chunks
-                .get_mut(&chunk_coord)
+            if self
+                .chunks
+                .get_mut(&chunk)
                 .unwrap()
-                .get_neighbors(square_coord) == 0
+                .get_neighbors(square) == 0
             {
-                //let extend_world_coords = index_iter::cardinal_adjacent()
-                //    .map(|offset| *offset + world_coord);
-                let extend_world_coords = index_iter::self_and_adjacent()
-                    .filter(|offset| *offset != Coord(0,0))
+                let fringe = IndexIterSigned::self_and_adjacent(Coord::<isize>(0,0))
+                    .filter(|&offset| offset != Coord(0,0))
                     .map(|offset| offset + world_coord);
                 
-                to_click.extend(extend_world_coords);
+                to_click.extend(fringe);
             }
         }
         
-        return if to_click.len() > 0 {
-            Some(to_click)
-        } else {
-            None
-        };
+        to_click.optionalize()
     }
     
     pub fn toggle_flag(&mut self, world_coord: Coord<isize>) {
-        let (chunk_coord, square_coord) = Self::world_to_chunk_square(world_coord);
+        let (chunk_coord, square_coord) = world_to_chunk_square(world_coord);
         self.allocate_with_surround(chunk_coord, square_coord);
         let target_chunk = self.chunks.get_mut(&chunk_coord).unwrap();
         
@@ -131,8 +127,7 @@ impl Game {
     
     pub fn calc_neighbors(&mut self, coord: Coord<isize>) {
         assert!(
-            index_iter::self_and_adjacent()
-                .map(|offset| coord + offset )
+            IndexIterSigned::self_and_adjacent(coord)
                 .all(|chunk_coord| self.chunks.contains_key(&chunk_coord))
         );
 
@@ -145,8 +140,7 @@ impl Game {
             
             let mut surround = Vec::<&Chunk>::with_capacity(9);
             surround.extend(
-                index_iter::self_and_adjacent()
-                    .map(|offset| coord + offset )
+                IndexIterSigned::self_and_adjacent(coord)
                     .map(|target| self.chunks.get(&target).unwrap())
             );
             let surround = surround; // make immutable
@@ -156,15 +150,15 @@ impl Game {
                     let mut count = 0;
                     let square_index_i: Coord<isize> = Coord::from(square_index);
                     
-                    for offset in index_iter::self_and_adjacent() {
+                    for offset in IndexIterSigned::self_and_adjacent(Coord::<isize>(0, 0)) {
                         let RENAME_ME = (
-                            square_index_i + offset + chunk::DIMENSION as isize
-                        ) / chunk::DIMENSION as isize;
+                            square_index_i + offset.map(|x| x + chunk::DIMENSION as isize)
+                        ).map(|x| x / chunk::DIMENSION as isize);
                         
                         let local_square_index = (
                             square_index_i + offset +
-                              (Coord(2,2)-RENAME_ME)*chunk::DIMENSION as isize
-                        ) % chunk::DIMENSION as isize;
+                              (Coord(2,2)-RENAME_ME).map(|x| x *chunk::DIMENSION as isize)
+                        ).map(|x| x % chunk::DIMENSION as isize);
                         
                         let target_chunk_index = 3*RENAME_ME.0 + RENAME_ME.1;
                         let target_chunk = surround[target_chunk_index as usize];
@@ -199,8 +193,8 @@ mod tests {
             Coord( 8,  8),
         ];
         
-        for coord in touch_points.iter() {
-            game.touch(vec![*coord]);
+        for &coord in &touch_points {
+            game.touch(&[coord]);
         }
         
         let active_count = game

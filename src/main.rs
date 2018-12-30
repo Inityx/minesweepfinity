@@ -1,13 +1,14 @@
-extern crate ncurses;
-extern crate rand;
+#![feature(associated_type_defaults)]
 
 mod game;
 mod interface;
 mod aux;
 
-use interface::Interface;
-use game::Game;
+use self::{
+    interface::Interface,
+    game::Game,
+};
 
 fn main() {
-    Interface::new().play(Game::default());
+    Interface::new().play(Game::new());
 }

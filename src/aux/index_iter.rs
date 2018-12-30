@@ -1,13 +1,12 @@
 #![allow(dead_code)]
-use super::coord::Coord;
-use ::std::slice;
+use crate::aux::coord::Coord;
 // TODO make macro
 
-pub const CARDINAL_OFFSETS: &'static [Coord<isize>;4] = &[
+const CARDINAL_OFFSETS: &'static [Coord<isize>;4] = &[
     Coord(-1, 0),
     Coord( 1, 0),
     Coord( 0,-1),
-    Coord( 0, 1)
+    Coord( 0, 1),
 ];
 
 pub struct IndexIterSigned {
@@ -25,6 +24,10 @@ impl IndexIterSigned {
             dim_one: dimension.1,
             offset: offset,
         }
+    }
+    
+    pub fn self_and_adjacent(origin: impl Into<Coord<isize>>) -> Self {
+        IndexIterSigned::new(Coord(3,3), origin.into() + Coord(-1,-1))
     }
 }
 
@@ -79,11 +82,7 @@ impl Iterator for IndexIterUnsigned {
     }
 }
 
-pub fn self_and_adjacent() -> IndexIterSigned {
-    IndexIterSigned::new(Coord(3,3), Coord(-1,-1))
-}
-
-pub fn cardinal_adjacent() -> slice::Iter<'static, Coord<isize>> {
+pub fn cardinal_adjacent() -> impl Iterator {
     CARDINAL_OFFSETS.iter()
 }
 
@@ -91,74 +90,45 @@ pub fn cardinal_adjacent() -> slice::Iter<'static, Coord<isize>> {
 mod tests {
     use super::*;
     use std::vec::Vec;
+    use itertools::iproduct;
     
     #[test]
-    fn eight_square_index_unsigned() {
-        let index_vec = IndexIterUnsigned::new(Coord(8,8), Coord(0,0)).collect::<Vec<Coord<usize>>>();
-        let mut full_vec = Vec::with_capacity(64);
-        
-        for i in 0..8 {
-            for j in 0..8 {
-                full_vec.push(Coord(i, j));
-            }
-        }
-        
-        assert_eq!(index_vec, full_vec);
+    fn index_unsigned() {
+        assert_eq!(
+            iproduct!(0..8, 0..8).map(Coord::from).collect::<Vec<_>>(),
+            IndexIterUnsigned::new(Coord(8,8), Coord(0,0)).collect::<Vec<_>>(),
+        );
     }
     
     #[test]
-    fn eight_square_index_signed() {
-        let index_vec = IndexIterSigned::new(Coord(8,8), Coord(-4,-4)).collect::<Vec<Coord<isize>>>();
-        let mut full_vec = Vec::with_capacity(64);
-        
-        for i in -4..4 {
-            for j in -4..4 {
-                full_vec.push(Coord(i, j));
-            }
-        }
-        
-        assert_eq!(index_vec, full_vec);
+    fn index_signed() {
+        assert_eq!(
+            iproduct!(-4..4, -4..4).map(Coord::from).collect::<Vec<_>>(),
+            IndexIterSigned::new(Coord(8,8), Coord(-4,-4)).collect::<Vec<_>>(),
+        );
     }
     
     #[test]
     fn adjacent_index() {
-        let index_vec = super::self_and_adjacent().collect::<Vec<Coord<isize>>>();
-        let mut full_vec = Vec::with_capacity(9);
-        
-        for i in -1..2 {
-            for j in -1..2 {
-                full_vec.push(Coord(i, j));
-            }
-        }
-        
-        assert_eq!(index_vec, full_vec);
+        assert_eq!(
+            iproduct!(-1..2, -1..2).map(Coord::from).collect::<Vec<_>>(),
+            IndexIterSigned::self_and_adjacent(Coord::<isize>(0,0)).collect::<Vec<_>>(),
+        );
     }
     
     #[test]
     fn nonsquare_unsigned() {
-        let index_vec = IndexIterUnsigned::new(Coord(3,5), Coord(0,0)).collect::<Vec<Coord<usize>>>();
-        let mut full_vec = Vec::with_capacity(15);
-        
-        for i in 0..3 {
-            for j in 0..5 {
-                full_vec.push(Coord(i,j));
-            }
-        }
-        
-        assert_eq!(index_vec, full_vec);
+        assert_eq!(
+            iproduct!(0..3, 0..5).map(Coord::from).collect::<Vec<_>>(),
+            IndexIterUnsigned::new(Coord(3,5), Coord(0,0)).collect::<Vec<_>>(),
+        );
     }
     
     #[test]
     fn nonsquare_signed() {
-        let index_vec = IndexIterSigned::new(Coord(3,5), Coord(-1,-2)).collect::<Vec<Coord<isize>>>();
-        let mut full_vec = Vec::with_capacity(15);
-        
-        for i in -1..2 {
-            for j in -2..3 {
-                full_vec.push(Coord(i,j));
-            }
-        }
-        
-        assert_eq!(index_vec, full_vec);
+        assert_eq!(
+            iproduct!(-1..2, -2..3).map(Coord::from).collect::<Vec<_>>(),
+            IndexIterSigned::new(Coord(3,5), Coord(-1,-2)).collect::<Vec<_>>(),
+        );
     }
 }
