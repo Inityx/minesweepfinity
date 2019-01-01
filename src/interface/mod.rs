@@ -5,13 +5,11 @@ use crate::{
         ModuloSignedExt,
         DivFloorSignedExt,
     },
-    game::{
-        Game,
-        SquareView::*,
-    },
+    game::{self, Game, AbsoluteCoord},
 };
 
 use std::{
+    ops::{Add, Rem},
     thread,
     time::Duration,
     mem,
@@ -32,7 +30,6 @@ const SPREAD_DELAY_MS: u64 = 30;
 pub struct Interface {
     scroll: Coord<isize>,
     size: Coord<usize>,
-    checker_cols: usize,
     spread_delay: Duration,
 }
 
@@ -102,98 +99,91 @@ impl Interface {
     fn resize(&mut self) {
         self.size = Coord(
             // Safe because extern statics are not being modified
+            unsafe { ncurses::COLS  } as usize,
             unsafe { ncurses::LINES } as usize,
-            unsafe { ncurses::COLS } as usize,
         );
-        
-        self.checker_cols = self.size.1/2;
     }
     
-    fn checker_color(&self, coord: Coord<usize>) -> i16 {
-        let checker_coord = coord/Coord(1,2);
-        (
-            self.scroll.map(|x| x % 2).sum() +
-            checker_coord.map(|x| x % 2).sum() as isize
-        ).modulo(2) as i16 + CHECKER_1
+    fn checker_color(&self, square: Coord<usize>) -> i16 {
+        let modulo = self
+            .scroll
+            .add(square.into())
+            .rem(Coord::squared(2))
+            .sum()
+            .modulo(2) as i16;
+        
+        CHECKER_1 + modulo
     }
 
-    fn visible_chunk_coords(&self) -> IndexIterSigned {
-        let far_corner = self.scroll + Coord::from(self.size/Coord(1,2));
+    fn visible_chunks<'a>(&self, game: &'a Game) -> impl Iterator<Item=(Coord<isize>, &'a game::chunk::Chunk)> {
+        let far_corner = self.scroll + Coord::from(self.size/Coord(2,1));
 
-        let min: Coord<isize> = self.scroll.map(|x| x.div_floor(8));
-        let max: Coord<isize> = far_corner.map(|x| x.div_floor(8) + 1);
+        let min = self.scroll.map(|x| x.div_floor(8)    );
+        let max = far_corner .map(|x| x.div_floor(8) + 1);
         let dimension = (max - min).abs();
 
-        IndexIterSigned::new(dimension, min)
+        IndexIterSigned::new(dimension, min).filter_map(move |coord|
+            game.get_chunk(coord).map(|chunk| (coord, chunk))
+        )
     }
     
     fn print_checkerboard(&self) {
-        let checker_size = self.size / Coord(1,2);
-        IndexIterUnsigned::new(checker_size, Coord(0,0))
-            .map(|coord| coord * Coord(1,2))
-            .for_each(|square|
+        let checker_size = self.size / Coord(2,1);
+        IndexIterUnsigned::new(checker_size, Coord::default())
+            .map(|square| (square, self.checker_color(square)))
+            .map(|(square, color)| (square * Coord(2,1), color))
+            .for_each(|(Coord(x, y), color)|
                 with_color(
-                    self.checker_color(square),
-                    || { ncurses::mvaddstr(square.0 as i32, square.1 as i32, "  "); }
+                    color,
+                    || { ncurses::mvaddstr(y as i32, x as i32, "  "); }
                 )
             );
     }
     
     fn print_chunks(&self, game: &Game) {
-        let visible_chunks = self
-            .visible_chunk_coords()
-            .filter_map(|chunk_location|
-                game
-                    .chunks()
-                    .get(&chunk_location)
-                    .map(|chunk| (chunk_location, chunk))
-            );
-            
-        for (location, chunk) in visible_chunks {
-            for (index, view) in chunk.view().into_iter().enumerate() {
-                let world_space = location.map(|x| x * 8) + Coord::from(Coord(index/8, index%8));
+        for (chunk, chunk_ref) in self.visible_chunks(game) {
+            for square in game::chunk::all_squares() {
+                let world_space = Coord::from(AbsoluteCoord { chunk, square });
                 let screen_space = self.world_to_screen_space(world_space);
 
-                let color = self.checker_color(screen_space);
+                let color = self.checker_color(screen_space / Coord(2, 1));
                 
-                let row = screen_space.0 as i32;
-                let col = screen_space.1 as i32;
+                let Coord(x, y) = screen_space.map(|x| x as i32);
                 
-                match view {
-                    Unclicked => with_color(color,   ||{ ncurses::mvaddstr(row, col, "  "); }),
-                    Flagged   => with_color(color,   ||{ ncurses::mvaddstr(row, col, "/>"); }),
-                    Penalty   => with_color(PENALTY, ||{ ncurses::mvaddstr(row, col, "><"); }),
-                    Points    => with_color(POINTS,  ||{ ncurses::mvaddstr(row, col, "<>"); }),
-                    Clicked(neighbors) => with_color(
-                        OVERLAY_1,
-                        || {
-                            ncurses::mvaddch(row, col, ' ' as u64);
-                            ncurses::mvaddch(
-                                row, col+1,
-                                if neighbors == 0 { b' ' } else { (neighbors + b'0') } as u64
-                            );
-                        }
-                    ),
+                use self::game::SquareView::*;
+                match chunk_ref.view(square) {
+                    Unclicked  => with_color(color,     || { ncurses::mvaddstr(y, x, "  "); }),
+                    Flagged    => with_color(color,     || { ncurses::mvaddstr(y, x, "/>"); }),
+                    Penalty    => with_color(PENALTY,   || { ncurses::mvaddstr(y, x, "><"); }),
+                    Points     => with_color(POINTS,    || { ncurses::mvaddstr(y, x, "<>"); }),
+                    Clicked(n) => with_color(OVERLAY_1, || {
+                        ncurses::mvaddch(y, x, ' ' as u64);
+                        ncurses::mvaddch(
+                            y, x+1,
+                            if n == 0 { b' ' } else { (n + b'0') } as u64
+                        );
+                    }),
                 }
             }
-        }
+        };
     }
 
     fn print_overlay(&self, game: &Game) {
-        let row = (self.size.0 - 1) as i32;
         let message = format!(
-            "Solved: {} | Exploded: {} | Scroll: {}",
+            "Solved: {} | Exploded: {} | Allocated: {}",
             game.chunks_won(),
             game.chunks_lost(),
-            self.scroll
+            game.chunks.len(),
         );
 
+        let Coord(x, y) = self.size - Coord(0, 1);
         with_color(OVERLAY_1,||{
-            for col in 0..(self.size.1 as i32) {
-                ncurses::mvaddch(row, col, ' ' as u64);
-            }
             ncurses::mvaddstr(
-                (self.size.0 as i32) - 1, 2,
+                y as i32, 0,
+                std::iter::repeat(' ').take(x).collect::<String>().as_str(),
+            );
+            ncurses::mvaddstr(
+                y as i32, 2,
                 message.as_str(),
             );
         });
@@ -203,7 +193,7 @@ impl Interface {
         let mut mouse_event: ncurses::MEVENT = unsafe { mem::uninitialized() };
         ncurses::getmouse(&mut mouse_event as *mut ncurses::MEVENT);
         
-        let mouse_coord = Coord(mouse_event.y as usize, mouse_event.x as usize);
+        let mouse_coord = Coord(mouse_event.x as usize, mouse_event.y as usize);
         let real_coord = self.screen_to_world_space(mouse_coord);
         
         if (mouse_event.bstate & ncurses::BUTTON1_PRESSED as ncurses::mmask_t) != 0 {
@@ -225,20 +215,20 @@ impl Interface {
     fn arrow_key_event(&mut self, arrow: i32) {
         use ncurses::*;
         self.scroll += match arrow {
-            KEY_UP    => Coord(-1,  0),
-            KEY_DOWN  => Coord( 1,  0),
-            KEY_LEFT  => Coord( 0, -1),
-            KEY_RIGHT => Coord( 0,  1),
+            KEY_UP    => Coord( 0, -1),
+            KEY_DOWN  => Coord( 0,  1),
+            KEY_LEFT  => Coord(-1,  0),
+            KEY_RIGHT => Coord( 1,  0),
             _ => unreachable!(),
         };
     }
     
     fn screen_to_world_space(&self, coord: Coord<usize>) -> Coord<isize> {
-        self.scroll + Coord::from(coord/Coord(1,2))
+        self.scroll + Coord::from(coord/Coord(2,1))
     }
     
     fn world_to_screen_space(&self, coord: Coord<isize>) -> Coord<usize> {
-        Coord::from((coord - self.scroll) * Coord(1,2))
+        ((coord - self.scroll) * Coord(2,1)).into()
     }
 }
 

@@ -5,8 +5,13 @@ use std::fmt;
 pub struct Coord<T>(pub T, pub T);
 
 impl<T> Coord<T> {
+    pub const fn squared(value: T) -> Self where T: Copy {
+        Coord(value, value)
+    }
+
     pub fn sum(self) -> T where T: Add<Output=T> {
-        self.0 + self.1
+        let Coord(x, y) = self;
+        x + y
     }
 
     pub fn map<U>(self, mut func: impl FnMut(T) -> U) -> Coord<U> {
